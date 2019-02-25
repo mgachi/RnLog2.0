@@ -98,6 +98,7 @@ public class GetFilenamesThread implements Runnable{
 			try {
 				if(!directory.replaceAll("\\s","").split(";")[i].isEmpty()) {
 					listModel1.addElement(directory.replaceAll("\\s","").split(";")[i]);
+					TimeUnit.MILLISECONDS.sleep(1);
 					System.out.print("added " + directory.replaceAll("\\s","").split(";")[i]);
 				}
 			} catch (NullPointerException ne) {
