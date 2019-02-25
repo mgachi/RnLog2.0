@@ -292,6 +292,9 @@ public class telnetTunnel {
 		//open socket connection to monitor
 		System.out.println("opening socket");
 		soc = new Socket(IP,port);	
+		//soc2 = new TelnetClient();
+		//soc2.connect(IP);
+		
 		//create buffered writer
 		BufferedReader readBuffer = new BufferedReader(new InputStreamReader(soc.getInputStream()));
 		BufferedWriter writeBuffer = new BufferedWriter(new OutputStreamWriter(soc.getOutputStream()));
@@ -301,11 +304,9 @@ public class telnetTunnel {
 		writeBuffer.flush(); 
 		TimeUnit.MILLISECONDS.sleep(100);
 		
-
 		////////////////////////////////////
 		//get the spectra for every filename
 		////////////////////////////////////
-		int errors = 0;
 		for(int j = 0; j< FileList.size(); j++) {
 			progressBar.setValue((int) progress * (j+1));
 			lblProgress2.setText("Getting " + FileList.get(j));
@@ -316,90 +317,44 @@ public class telnetTunnel {
 			writeBuffer.flush();
 			TimeUnit.MILLISECONDS.sleep(500);
 
-			int tmp = readBuffer.read();
+			//////////////////////////////////////////////////////////
+			//gather the data
+			///////////////////////////////////////////////////////////
+			TimeUnit.MILLISECONDS.sleep(50);
+			int tmp;
 			String result="";
-			while(tmp != -1 && readBuffer.ready()) {
-				result += Character.toString ((char) tmp);
+			TimeUnit.MILLISECONDS.sleep(50);
+			
+			//read telnet buffer byte by byte and convert it to char
+			//if buffer is not ready, wait and try again, if its still not ready, end of file is reached
+			//checking if tmp == -1 does not work
+			
+			while(true) {
 				tmp = readBuffer.read();
+				result += Character.toString ((char) tmp);
+				if(!readBuffer.ready()) {
+					TimeUnit.MILLISECONDS.sleep(70);
+					System.out.println("waiting for telnet buffer");
+					if(!readBuffer.ready())
+						break;
+				}
 			}
 			
 			//////////////////////////////////////////////////////////
 			//compute the correct output string out of the telnet data
+			//by removing linebreaks ("\n") and spaces
 			///////////////////////////////////////////////////////////
-			
-			//split the gathered data at whitespaces (linebreaks and spaces)
-			//kick out everything that is whitespace
-			//String.replace does not work with telnet data as far as I know, thats why I use this workaround
-			ArrayList<String> splittedResult = new ArrayList<String>();
-			for(int i=0; i<result.split("\\s").length; i++) {
-				//filter out the returned "password ?" line from the monitor, as well as empty spaces
-				if(!result.split("\\s")[i].equals("\\s") && !result.split("\\s")[i].trim().isEmpty() &&  !result.split("\\s")[i].trim().contains("?") && !result.split("\\s")[i].trim().contains("Password")) {
-					splittedResult.add(result.split("\\s")[i].trim());
-				}	
-			}
-			if(splittedResult.size()<159) {
-				//retrieved data is not complete
-				//try again if its the first time
-				if(errors == 0) {
-					j = j-1;
-					continue;
-				} else {
-					errors = 1;
-					continue;
+			String cleanResult = "";
+			for(int i = 0; i<result.split("\n").length; i++) {
+				if(!result.split("\n")[i].isEmpty() && !result.split("\n")[i].contains("Password")) {
+					cleanResult+=result.split("\n")[i].trim() + System.lineSeparator();
 				}
 			}
-			
-			//combine the splitted result into a String, containing the correct line seperators
-			//each line needs to be tested so the finalResult is according to what we need
-			String finalResult = "";
-			for(int i = 0; i< splittedResult.size(); i++) {
-				finalResult += splittedResult.get(i);
-				if(Arrays.asList(0, 3, 134, 135, 136, 137, 138, 139, 140, 141, 143, 144, 145, 146, 147, 148, 149, 150, 152, 153, 154, 155, 156, 157).contains(i)) {
-					finalResult+=" ";
-				}
-				if(!Arrays.asList(0, 3, 134, 135, 136, 137, 138, 139, 140, 141, 143, 144, 145, 146, 147, 148, 149, 150, 152, 153, 154, 155, 156, 157).contains(i))
-					finalResult += System.lineSeparator();
-			}
-			Files.add(finalResult);
-			System.out.println(finalResult);
+			Files.add(cleanResult);
 		}
-		
-		/* old method
-		//first three lines are empty
-		readBuffer.readLine();
-		readBuffer.readLine();
-		readBuffer.readLine(); 
-		for(int j = 0; j< FileList.size(); j++) {
-			
-			progressBar.setValue((int) progress * (j+1));
-			lblProgress2.setText("Getting " + FileList.get(j));
-			TimeUnit.MILLISECONDS.sleep(100);
-			System.out.println("sending snd "+FileList.get(j));
-			writeBuffer.write("snd" + " " + FileList.get(j));
-			writeBuffer.newLine();
-			writeBuffer.flush();
-			TimeUnit.MILLISECONDS.sleep(500);
-			String result="";
-			String tmp = "";
-			
-			for(int x = 0; x<135;x++) {
-				try {
-					//every second line is empty
-					tmp += readBuffer.readLine();
-					result += readBuffer.readLine().trim();
-					result += System.lineSeparator();
-				} catch (Exception ex) {
-					break;
-				}
-			}
-			
-			Files.add(result.trim());
-		}
-		*/
 		writeBuffer.close();
 		readBuffer.close();
 		this.soc.close();
-		soc.close();
 		return Files;
 	}
 

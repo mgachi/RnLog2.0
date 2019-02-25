@@ -312,6 +312,8 @@ public class RnLog extends JFrame {
 		panel_2.add(lblNewLabel_6);
 		
 		tfCOMPort = new JTextField();
+		tfCOMPort.setEditable(false);
+		tfCOMPort.setEnabled(false);
 		tfCOMPort.setBackground(SystemColor.text);
 		tfCOMPort.setHorizontalAlignment(SwingConstants.RIGHT);
 		tfCOMPort.setBounds(10, 83, 106, 20);
@@ -320,6 +322,7 @@ public class RnLog extends JFrame {
 		tfCOMPort.setColumns(10);
 		
 		JRadioButton rdbtnNewRadioButton = new JRadioButton("RS232");
+		rdbtnNewRadioButton.setEnabled(false);
 		rdbtnNewRadioButton.setForeground(SystemColor.textText);
 		rdbtnNewRadioButton.setBackground(SystemColor.menu);
 		buttonGroup.add(rdbtnNewRadioButton);
