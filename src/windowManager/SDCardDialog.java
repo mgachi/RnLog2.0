@@ -72,7 +72,7 @@ public class SDCardDialog extends JFrame {
 		IP = _IP;
 		JTextPane textPane = new JTextPane();
 		getContentPane().add(textPane, BorderLayout.WEST);
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		setBounds(100, 100, 510, 324);
 		//contentPane = new JPanel();// nach oben oder?
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
@@ -231,6 +231,10 @@ public class SDCardDialog extends JFrame {
 		//testConnection(IP, progressBar, lblStatus);
 		//getDirectory(IP, progressBar,lblStatus, listModel1);
 		
+		//clear listModel1 just in case there might be files from a previous run/anbother monitor and reset others
+		listModel1.clear();
+		lblStatus.setForeground(Color.BLACK);
+		progressBar.setValue(0);
 		Thread TgetFilenames = new Thread(new GetFilenamesThread (IP, lblStatus, listModel1, btnAll ,btnCopySelection, btnStopTransfer, btnDelete, btnSelect, progressBar));
 		//TODO:disable all buttons until thread is finished
 		//currently, modelLiust1, get deleted if they get enabled again in the thread

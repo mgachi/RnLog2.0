@@ -687,10 +687,10 @@ public class RnLog extends JFrame {
 					return;
 				}
 				//start new window where you can copy files from the card
+				//clear the list of files
 				SDCardDialog SDdialog = new SDCardDialog(tfIP.getText());
 				System.out.println(ini.IP);
 				SDdialog.setVisible(true);
-				
 			}
 		});
 		btnReadMemoryCard.setToolTipText("Connect to the monitor and copy files from the SD card");

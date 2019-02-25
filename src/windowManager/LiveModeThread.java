@@ -52,7 +52,7 @@ public class LiveModeThread implements Runnable {
 				try {
 					soc = new Socket(IP, 23);
 				} catch (ConnectException Ce) {
-					JOptionPane.showMessageDialog(null, "Could not connect to the Monitor. Conenction refused or interrupted by Monitor. Please try again.", "Live Mode", JOptionPane.WARNING_MESSAGE);
+					JOptionPane.showMessageDialog(null, "Could not connect to the Monitor. Maybe it was refused or interrupted by the Monitor or the IP was wrong. Please try again.", "Live Mode", JOptionPane.WARNING_MESSAGE);
 					Ce.printStackTrace();
 					tglbtnLive.setSelected(false);
 					return;
@@ -62,7 +62,7 @@ public class LiveModeThread implements Runnable {
 					tglbtnLive.setSelected(false);
 					//soc does not need to be closed
 					return;
-				}
+				} 
 				//create buffered writer
 				BufferedReader readBuffer = new BufferedReader(new InputStreamReader(soc.getInputStream()));
 				BufferedWriter writeBuffer = new BufferedWriter(new OutputStreamWriter(soc.getOutputStream()));
@@ -83,18 +83,39 @@ public class LiveModeThread implements Runnable {
 				TimeUnit.MILLISECONDS.sleep(100);
 				int tmp = readBuffer.read();
 				String result="";
-				//read in everything from the read Buffer, it returns integers and -1 if its EOF
-				while(tmp != -1 && readBuffer.ready()) {
-					result += Character.toString ((char) tmp);
+				
+				//read telnet buffer byte by byte and convert it to char
+				//if buffer is not ready, wait and try again, if its still not ready, end of file is reached
+				//checking if tmp == -1 does not work
+				
+				while(true) {
 					tmp = readBuffer.read();
+					result += Character.toString ((char) tmp);
+					if(!readBuffer.ready()) {
+						TimeUnit.MILLISECONDS.sleep(300);
+						System.out.println("waiting for telnet buffer");
+						if(!readBuffer.ready())
+							break;
+					}
 				}
-				//if its less than 19, something went wrong while receiving the data, close connection and try again
-				if(result.split("\\s").length<19 || result.split("\\s").length>19) {
+				
+				String cleanResult = "";
+				for(int i = 0; i<result.split("\n").length; i++) {
+					if(!result.split("\n")[i].isEmpty() && !result.split("\n")[i].contains("Password")) {
+						cleanResult+=result.split("\n")[i].trim() + System.lineSeparator();
+					}
+				}				
+				
+				//if its less than 10, something went wrong while receiving the data, close connection and try again
+				if(cleanResult.split("\\s").length<10) {
 					soc.close();
+					System.out.println("close");
+					System.out.println(cleanResult.split("\\s").length);
 					continue;
 				}
+				
 				//extract the time and write it into the textField
-				String monitorTime = result.split("\\s")[6] + " " + result.split("\\s")[7];
+				String monitorTime = cleanResult.split("\\s")[0] + " " + cleanResult.split("\\s")[1];
 				RnLog.textField_2.setText(monitorTime);
 				
 				//////////////////////////////////
@@ -109,19 +130,28 @@ public class LiveModeThread implements Runnable {
 				
 				result="";
 				//read in everything from the read Buffer, it returns integers and -1 if its EOF
-				while(tmp != -1 && readBuffer.ready()) {
-					result += Character.toString ((char) tmp);
+				while(true) {
 					tmp = readBuffer.read();
+					result += Character.toString ((char) tmp);
+					if(!readBuffer.ready()) {
+						TimeUnit.MILLISECONDS.sleep(300);
+						System.out.println("waiting for telnet buffer");
+						if(!readBuffer.ready())
+							break;
+					}
+				}
+				
+				cleanResult = "";
+				for(int i = 0; i<result.split("\n").length; i++) {
+					if(!result.split("\n")[i].isEmpty() && !result.split("\n")[i].contains("Password")) {
+						cleanResult+=result.split("\n")[i].trim() + System.lineSeparator();
+					}
 				}
 				int[] values = new int[128];
-				int idx = 0;
 				try {
-					for(int i=0; i<result.split("\\s").length; i++) {
-						//check if it is an integer
-						if( result.split("\\s")[i].trim().matches("-?\\d+")) {
-							values[idx] = Integer.parseInt( result.split("\\s")[i] );
-							idx++;
-						}	
+					for(int i=0; i<cleanResult.split(System.lineSeparator()).length; i++) {
+						System.out.println(cleanResult.split(System.lineSeparator())[i]);
+						values[i] = Integer.parseInt( cleanResult.split(System.lineSeparator())[i] );
 					}
 				} catch (Exception e) {
 					//the expected input from the monitor was wrong, close connection and try again from the beginning
@@ -161,7 +191,7 @@ public class LiveModeThread implements Runnable {
 				readBuffer.close();
 				//don't get the data too fast
 				soc.close();
-				TimeUnit.MILLISECONDS.sleep(1500);	
+				TimeUnit.MILLISECONDS.sleep(500);	
 				//tglbtnLive.setSelected(false);
 			}
 		} catch (IOException e) {

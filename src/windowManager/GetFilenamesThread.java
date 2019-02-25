@@ -47,7 +47,6 @@ public class GetFilenamesThread implements Runnable{
 			lblStatus.setText("Conenction closed");
 			e.printStackTrace();
 		} catch (IOException e) {
-
 			lblStatus.setText("Could not connect to " + IP);
 			lblStatus.setForeground(Color.RED);
 			e.printStackTrace();
@@ -59,6 +58,10 @@ public class GetFilenamesThread implements Runnable{
 			//close thread
 			progressBar.setValue(100);
 			return;
+		} catch (Exception ex) {
+			lblStatus.setText("Could not connect to " + IP);
+			lblStatus.setForeground(Color.RED);
+			ex.printStackTrace();
 		}
 		if(listModel1.isEmpty()) {
 			//could not retrieve files from card
@@ -114,6 +117,7 @@ public class GetFilenamesThread implements Runnable{
 			}
 		}
 		lblStatus.setText("Loaded Filenames from " + ini.id);
+		
 	}
 	
 }
