@@ -1,0 +1,14 @@
+222-Radon activities calculated with RnLog 2.0
+
+Evaluated by: Your name on 12.03.2019
+Used parameters 
+Method	    : Stockburger
+Source File : C:\Users\Alessandro\eclipse-workspace\RnLog2.0\lvl2\extract.txt
+Solid Angle : 0.265
+Disequil.   : 1.0
+Flux Offset : 0.0
+Flux Slope  : 1.0
+
+Format: 
+Stoptime,Activity [Bq/m3], Ac[dps],Ac/dt,Total, Window, Edge, temp1[C], temp2[C], temp3[C], Pressure[mbar], LifeTime[sec], Flux[m3/s], ID 
+

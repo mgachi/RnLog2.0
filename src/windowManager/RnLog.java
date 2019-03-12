@@ -1208,7 +1208,9 @@ public class RnLog extends JFrame {
             if (files != null && files.length > 0){
             	for (int x = 0; x < files.length; x++) { 
                 	filenames = filenames + "\n" + files[x].getName();
-               		System.out.println("You have selected these files:\n" +files[x]);
+               		System.out.println("You have selected this file:\n" +files[x]);
+               		if(!checkFilename(files[x].getName()))
+               			continue;	
                		Spectra actualSpectrum;
                		System.out.println("add actual spectrum");
                		try {
@@ -1458,8 +1460,8 @@ public class RnLog extends JFrame {
 		File lvl2Dir = new File(lvl2);
 		ArrayList<File> rawFiles = new ArrayList<File>();// = lvl0Dir.listFiles();
 		ArrayList<File> evFiles = new ArrayList<File>();// = lvl2Dir.listFiles();
-		System.out.println(lvl0Dir);
-		System.out.println(lvl2Dir);
+		System.out.println(lvl0Dir + " exists? " + lvl0Dir.exists());
+		System.out.println(lvl2Dir + " exists? " + lvl2Dir.exists());
 
 		try {
 			for (int i = 0; i < lvl0Dir.listFiles().length; i++) {
@@ -1467,23 +1469,11 @@ public class RnLog extends JFrame {
 				if (lvl0Dir.listFiles()[i].isFile() && checkFilename(lvl0Dir.listFiles()[i].getName())) {
 					rawFiles.add(lvl0Dir.listFiles()[i]);
 				}
-			}
-			for (int i = 0; i < lvl2Dir.listFiles().length; i++) {
-				//check if the file is a spectra
-				if (lvl2Dir.listFiles()[i].isFile() && checkFilename(lvl2Dir.listFiles()[i].getName())) {
-					evFiles.add(lvl2Dir.listFiles()[i]);
-				}
-				//search for activity and extract file + reference spectrum
-
-				if (lvl2Dir.listFiles()[i].isFile() && lvl2Dir.listFiles()[i].getName().endsWith(".txt")) {
-					extract = lvl2Dir.listFiles()[i];
-				}
-				if (lvl2Dir.listFiles()[i].isFile() && lvl2Dir.listFiles()[i].getName().endsWith(".act")) {
-					activity = lvl2Dir.listFiles()[i];
-				}
-				if (lvl2Dir.listFiles()[i].isFile() && lvl2Dir.listFiles()[i].getName().contains("temp_ref_spec.ref")) {
+				//search for reference spectrum
+				if (lvl0Dir.listFiles()[i].isFile() && lvl0Dir.listFiles()[i].getName().contains("temp_ref_spec.ref")) {
 					try {
-						RefSpec = new Spectra(lvl2Dir.listFiles()[i].getName(), lvl2Dir.listFiles()[i]);
+						System.out.println("Reference spectrum found: " + lvl0Dir.listFiles()[i] + lvl0Dir.listFiles()[i].getName());
+						RefSpec = new Spectra(lvl0Dir.listFiles()[i].getName(), lvl0Dir.listFiles()[i]);
 					} catch (Exception e) {
 						System.out.println("could not load reference spectrum");
 						JOptionPane.showMessageDialog(null, "No reference spectrum found. Please create one first." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
@@ -1494,18 +1484,33 @@ public class RnLog extends JFrame {
 					}
 				}
 			}
+			for (int i = 0; i < lvl2Dir.listFiles().length; i++) {
+				//check if the file is a spectra
+				if (lvl2Dir.listFiles()[i].isFile() && checkFilename(lvl2Dir.listFiles()[i].getName())) {
+					evFiles.add(lvl2Dir.listFiles()[i]);
+				}
+				
+				//search for activity and extract file
+				if (lvl2Dir.listFiles()[i].isFile() && lvl2Dir.listFiles()[i].getName().endsWith(".txt")) {
+					extract = lvl2Dir.listFiles()[i];
+				}
+				if (lvl2Dir.listFiles()[i].isFile() && lvl2Dir.listFiles()[i].getName().endsWith(".act")) {
+					activity = lvl2Dir.listFiles()[i];
+				}
+			}
 		} catch (Exception e) {
 			//could not load the spectra
-			JOptionPane.showMessageDialog(null, "Could not read the spectra from lvl0 and lvl1 directories, please specify a correct path in the *.ini file." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+			JOptionPane.showMessageDialog(null, "Could not read the spectra from lvl0 and lvl2 directories, please specify a correct path in the *.ini file." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
 			progressBar.setString("");
 			progressBar.setValue(0);
+			e.printStackTrace();
 			return;
 		}
 		
+		//double check if the reference spectrum was found
 		if (RefSpec == null) {
 			//no reference spectrum found
-			//TODO: implement 
-			JOptionPane.showMessageDialog(null, "No reference spectrum found. please create one first." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+			JOptionPane.showMessageDialog(null, "No reference spectrum found. Please create one first." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
 			progressBar.setString("");
 			progressBar.setValue(0);
 			return;
@@ -1534,7 +1539,7 @@ public class RnLog extends JFrame {
 		if(evFiles.isEmpty()) {
 			System.out.println("no files in lvl2 found -> copy all");
 			while(!rawFiles.isEmpty()) {
-				System.out.println("copying " + rawFiles.get(0));
+				System.out.println("remembering " + rawFiles.get(0));
 				toEvaluate.add(rawFiles.get(0));
 				rawFiles.remove(0);
 			}
@@ -1556,13 +1561,15 @@ public class RnLog extends JFrame {
 			return;
 		}
 		progressBar.setString("extracting new spectra");
-		progressBar.setValue(1);
+		progressBar.setValue(0);
+	
 		
 		//////////////////////////////////////////////////////
 		//extract these files and add it to the extract file
 		//////////////////////////////////////////////////////
 
 		if(extract == null) {
+			System.out.println("No extract file found, creating a new one at " + lvl2Dir.getPath()+"\\extract.txt");
 			File e = new File(lvl2Dir.getPath()+"\\extract.txt");
 			try {
 				e.createNewFile();
@@ -1584,8 +1591,8 @@ public class RnLog extends JFrame {
 		}
 
 		if (activity == null) {
-			//create files if not found
-			File a = new File(lvl2Dir.getPath()+"\\extract.txt");
+			System.out.println("No activity file found, creating a new one at " + lvl2Dir.getPath()+"\\activity.txt");
+			File a = new File(lvl2Dir.getPath()+"\\activity.act");
 			try {
 				a.createNewFile();
 				activity = a;
@@ -1596,6 +1603,24 @@ public class RnLog extends JFrame {
 			}
 		}
 		String extFilename = extract.getName();
+		
+		//copy the files that need to be evaluated into lvl2	
+		for(int i=0; i<toEvaluate.size(); i++) {
+			try {
+				System.out.println("copy " + toEvaluate.get(i) + " to " +  lvl2Dir + "\\" + toEvaluate.get(i).getName());
+				copyFile(toEvaluate.get(i), new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
+				//dont flag the lvl0 spectra
+				System.out.print("davor :" +toEvaluate.get(i));
+				toEvaluate.set(i, new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
+				System.out.print("danach :" +toEvaluate.get(i));
+			} catch (IOException e) {
+				System.out.println("Could not copy file into lvl2");
+				JOptionPane.showMessageDialog(null, "Could not copy the evaluated file into the lvl2 folder. Maybe you have no writing permissions?"/*, JOptionPane.INFORMATION_MESSAGE*/);
+				e.printStackTrace();
+				break;
+			}
+		}
+		
 		spectraList.clear();
 		//select spectra
 		for(int i=0; i< toEvaluate.size(); i++) {
@@ -1604,20 +1629,6 @@ public class RnLog extends JFrame {
 			} catch (Exception e) {
 				System.out.print(toEvaluate.get(i).getName() + " is broken");
 				e.printStackTrace();
-			}
-		}
-		//copy the files that need to be evaluated into lvl2	
-		for(int i=0; i<toEvaluate.size(); i++) {
-			try {
-				System.out.println("copy " + toEvaluate.get(i) + " to " +  lvl2Dir);
-				copyFile(toEvaluate.get(i), new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
-				//dont flag the lvl0 spectra
-				toEvaluate.set(i, new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
-			} catch (IOException e) {
-				System.out.println("Could not copy file into lvl2");
-				JOptionPane.showMessageDialog(null, "Could not copy the evaluated file into the lvl2 folder. Maybe you have no writing permissions?"/*, JOptionPane.INFORMATION_MESSAGE*/);
-				e.printStackTrace();
-				break;
 			}
 		}
 		
@@ -1641,7 +1652,6 @@ public class RnLog extends JFrame {
 	        	spectraList.get(i).calcEdge(RefSpec, ini.thres3, ini.thres4, ini.Edgeoffset);
 	        	spectraList.get(i).showSpectra(chartPanel);
 	        	progress = (((double) i+1.0)/(spectraList.size())*100.0);
-	        	System.out.println( (progress));
 	        	progressBar.setValue((int) (progress));
 	        	//flag spectra
 	        	if(spectraList.get(i).edge > ini.Edgeoffset+ini.UpperFlagThres || spectraList.get(i).edge < ini.Edgeoffset-ini.LowerFlagThres) {
@@ -1658,6 +1668,8 @@ public class RnLog extends JFrame {
 	        	}
 	        }
 	        //ask user to set the edge on flagged spectra again manually
+
+	        
 	        if (flagged.size()>0) {
 	        	int dialogButton = JOptionPane.YES_NO_OPTION;
 	        	int dialogResult = JOptionPane.showConfirmDialog (null, flagged.size() + " spectra have been flagged. Do you want to flag them manually?" ,"Continue evaluation", dialogButton);
@@ -1754,7 +1766,9 @@ public class RnLog extends JFrame {
             "Creating ACT File",
             JOptionPane.PLAIN_MESSAGE, null, null, "Your name");
 	if(evaluator == null || (evaluator != null && ("".equals(evaluator)))) {
-		    return;
+		progressBar.setValue(0);
+		progressBar.setString("");
+		return;
 	}
 	System.out.println("Evaluator: " + evaluator);
 	//select extract file

@@ -346,7 +346,7 @@ public class telnetTunnel {
 			///////////////////////////////////////////////////////////
 			String cleanResult = "";
 			for(int i = 0; i<result.split("\n").length; i++) {
-				if(!result.split("\n")[i].isEmpty() && !result.split("\n")[i].contains("Password")) {
+				if(!result.split("\n")[i].isEmpty() && !result.split("\n")[i].contains("Password")&& !result.split("\n")[i].contains("ok")) {
 					cleanResult+=result.split("\n")[i].trim() + System.lineSeparator();
 				}
 			}

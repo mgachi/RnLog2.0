@@ -115,7 +115,7 @@ public class Spectra {
 		        Counter2Slope=Double.parseDouble(lines.get(134).split(";")[2]);
 		        Counter2Offset=Double.parseDouble(lines.get(134).split(";")[3]);
 	        }
-	        System.out.println("Read in" + name);
+	        System.out.println("Read in " + name + " from " + path);
 		} catch (IOException e) {
 	        System.out.println("Could not read in Spectra"); 
 			// TODO Auto-generated catch block
@@ -565,7 +565,7 @@ public class Spectra {
     public void removeEdge() throws IOException {
     	if(edge == -1) {
     		//no edge set
-    		System.out.println("no Edge set");
+    		System.out.println("no edge set");
     		return;		
     	}
     	edge = -1;
@@ -616,7 +616,7 @@ public class Spectra {
     }
 
 	private void setEdge(int _edge) throws IOException {
-		System.out.println("seting Edge");  
+		System.out.println("setting Edge");  
     	this.removeEdge();
 		edge = _edge;
     	BufferedReader file = new BufferedReader(new FileReader(path));
@@ -627,7 +627,6 @@ public class Spectra {
         }
         inputBuffer.append(edge);
         String inputStr = inputBuffer.toString();
-        System.out.println("set Edge input Str"+ edge + "\n" + inputStr); 
         file.close();
         FileOutputStream fileOut = new FileOutputStream(path);
         fileOut.write(inputStr.getBytes());
