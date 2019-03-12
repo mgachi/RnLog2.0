@@ -1830,12 +1830,12 @@ public class RnLog extends JFrame {
         	flag[i] = 0;
         	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
         	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
-        	if((actual - last) > 1800000 ) {
+        	if((last - actual) > 1800000 ) {
         		//if (Datetime_last - Datetime_current) > 1800s
         		flag[i] = 1; //split here
         		System.out.println("split " + (actual - last));
         	}
-        	if((actual - last) < 60000 ) {
+        	if((last - actual) < 60000 ) {
         		//if (Datetime_last - Datetime_current) > 1800s
         		flag[i] = 2; //remove this
         		System.out.println("remove " + (actual - last));
