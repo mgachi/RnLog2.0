@@ -189,7 +189,7 @@ public class iniFile {
 			}
 			
 		} else {
-			//TODO: existierende ini datei überschreiben -> alle werte einzeln durchgehen und reinschreiben
+
 			System.out.println("overwriting existing ini file");
 			//go through every value of the window and check if its the same as in the ini file
 			try {
@@ -226,9 +226,9 @@ public class iniFile {
 					this.LowerFlagThres = Integer.parseInt(tfLowerFlagThreshold.getText());
 					findAndReplace(file, "LowerFlagThres", tfLowerFlagThreshold.getText());
 				}
-				if (!( Integer.toString(this.LowerFlagThres).equals( tfUpperFlagThreshold.getText() ))) {
-					this.LowerFlagThres = Integer.parseInt(tfUpperFlagThreshold.getText());
-					findAndReplace(file, "LowerFlagThres", tfUpperFlagThreshold.getText());
+				if (!( Integer.toString(this.UpperFlagThres).equals( tfUpperFlagThreshold.getText() ))) {
+					this.UpperFlagThres = Integer.parseInt(tfUpperFlagThreshold.getText());
+					findAndReplace(file, "UpperFlagThres", tfUpperFlagThreshold.getText());
 				}
 				/* not used in the old radon program ?
 				if (!( Integer.toString(this.thres7).equals( tfFluxslope.getText() ))) {

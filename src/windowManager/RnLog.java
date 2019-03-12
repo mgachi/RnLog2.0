@@ -1016,15 +1016,15 @@ public class RnLog extends JFrame {
 			        	flag[i] = 0;
 			        	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
 			        	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
-			        	if((actual - last) > 1800000 ) {
+			        	if((last - actual) > 1800000 ) {
 			        		//if (Datetime_last - Datetime_current) > 1800s
 			        		flag[i] = 1; //split here
-			        		System.out.println("split " + (actual - last));
+			        		System.out.println("split " + (last - actual));
 			        	}
-			        	if((actual - last) < 60000 ) {
+			        	if((last - actual) < 60000 ) {
 			        		//if (Datetime_last - Datetime_current) > 1800s
 			        		flag[i] = 2; //remove this
-			        		System.out.println("remove " + (actual - last));
+			        		System.out.println("remove " + (last - actual));
 			        	}
 			        }
 			        int j = 0;
@@ -1762,6 +1762,7 @@ public class RnLog extends JFrame {
 	//TODO: don't completely redo activtiy file
 	
 	//who created the file
+	progressBar.setString("creating activity file");
 	String evaluator = (String) JOptionPane.showInputDialog(null,"Last evaluated by:",
             "Creating ACT File",
             JOptionPane.PLAIN_MESSAGE, null, null, "Your name");
@@ -1833,12 +1834,12 @@ public class RnLog extends JFrame {
         	if((last - actual) > 1800000 ) {
         		//if (Datetime_last - Datetime_current) > 1800s
         		flag[i] = 1; //split here
-        		System.out.println("split " + (actual - last));
+        		System.out.println("split " + (last - actual));
         	}
         	if((last - actual) < 60000 ) {
         		//if (Datetime_last - Datetime_current) > 1800s
         		flag[i] = 2; //remove this
-        		System.out.println("remove " + (actual - last));
+        		System.out.println("remove " + (last - actual));
         	}
         }
         int j = 0;
@@ -1906,7 +1907,12 @@ public class RnLog extends JFrame {
         bw.close();
     	btnContinue.setVisible(false);
     	JOptionPane.showMessageDialog(null, "Successfully created " + activity.getName() , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+    	progressBar.setString("");
+    	progressBar.setValue(0);
+    	
 	} catch (Exception e3) {
+    	progressBar.setString("");
+    	progressBar.setValue(0);
 		e3.printStackTrace();
 	}
 }
