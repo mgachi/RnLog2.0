@@ -110,6 +110,8 @@ public class RnLog extends JFrame {
 	public static JTextField textField_19;
 	public static JTextField textField_20;
 	public ArrayList<Spectra> spectraList = new ArrayList<Spectra>();
+	//for continue evaluation, save the non flagged spectra for the user
+	public ArrayList<Spectra> tmpList = new ArrayList<Spectra>();
 	public JProgressBar progressBar;
 	//the currently selected spectrum of the list
 	public int selectedSpecIdx = 0;
@@ -1016,15 +1018,15 @@ public class RnLog extends JFrame {
 			        	flag[i] = 0;
 			        	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
 			        	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
-			        	if((last - actual) > 1800000 ) {
+			        	if((actual - last) > 1800000 ) {
 			        		//if (Datetime_last - Datetime_current) > 1800s
 			        		flag[i] = 1; //split here
-			        		System.out.println("split " + (last - actual));
+			        		System.out.println("split " + (actual - last));
 			        	}
-			        	if((last - actual) < 60000 ) {
+			        	if((actual - last) < 60000 ) {
 			        		//if (Datetime_last - Datetime_current) > 1800s
 			        		flag[i] = 2; //remove this
-			        		System.out.println("remove " + (last - actual));
+			        		System.out.println("remove " + (actual - last));
 			        	}
 			        }
 			        int j = 0;
@@ -1104,9 +1106,9 @@ public class RnLog extends JFrame {
 		});
 		
 		//create a continue button for the "continue evaluation" process
-		JButton btnContinueFlagging = new JButton("flag next spectrum");
+		JButton btnContinueFlagging = new JButton("continue evaluation");
 		btnContinueFlagging.setBackground(new Color(50, 205, 50));
-		btnContinueFlagging.setToolTipText("save this edge and flag next spectrum");
+		btnContinueFlagging.setToolTipText("click here to continue the automatic evaluation after setting the edge for the flagged spectra");
 		btnContinueFlagging.setBounds(10, 435, 145, 44);
 		panel.add(btnContinueFlagging);
 		btnContinueFlagging.setVisible(false);
@@ -1120,12 +1122,17 @@ public class RnLog extends JFrame {
 		
 		btnContinueFlagging.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
+				continueEvaluation2(btnContinueFlagging);
+				
+				
 				// get the next spectra where the edge needs to be set
+				/*
 				if(currentflaggedSpec==flagged.size() || flagged.isEmpty()) {
 					//continue the evaluation
 					continueEvaluation2(btnContinueFlagging);
 				}
 				flagged.get(currentflaggedSpec).showSpectra(chartPanel);
+				*/
 			}
 		});
 		
@@ -1667,17 +1674,23 @@ public class RnLog extends JFrame {
 	        		*/
 	        	}
 	        }
-	        //ask user to set the edge on flagged spectra again manually
-
 	        
+	        //ask user to set the edge on flagged spectra again manually
 	        if (flagged.size()>0) {
 	        	int dialogButton = JOptionPane.YES_NO_OPTION;
 	        	int dialogResult = JOptionPane.showConfirmDialog (null, flagged.size() + " spectra have been flagged. Do you want to flag them manually?" ,"Continue evaluation", dialogButton);
 	        	if(dialogResult == JOptionPane.NO_OPTION){
 	        		bw.close();
+	        		progressBar.setValue(0);
+	        		progressBar.setString("");
 	        		return;
 	        	} else {
+	        		//user wants to flag spectra himself
 	        		btnContinue.setVisible(true);
+	        		tmpList = (ArrayList<Spectra>) spectraList.clone();
+	        		spectraList.clear();
+	        		spectraList = (ArrayList<Spectra>) flagged.clone();
+	        		spectraList.get(0).showSpectra(chartPanel);
 	        		bw.close();
 	        		return;
 	        	}
@@ -1698,11 +1711,26 @@ public class RnLog extends JFrame {
 	public void continueEvaluation2(JButton btnContinue) {
 		FileOutputStream fileOut;
 		try {
+			if(!tmpList.isEmpty()) {
+				//user set the edge of some spectra manually
+				//for(int j =0; j< tmpList.size(); j++) {
+					//spectraList.add(tmpList.get(j));
+				//}
+				spectraList = (ArrayList<Spectra>) tmpList.clone();
+				tmpList.clear();
+			}
+			
+			//spectraList needs to be reversed in order
+			for (int i=0; i<spectraList.size(); i++) {
+				tmpList.add(spectraList.get(spectraList.size()-i-1));
+			}
+			spectraList = (ArrayList<Spectra>) tmpList.clone();
+			
+			//writing the extract file
 			fileOut = new FileOutputStream(extract, true);
 			//--------------------------------------^^^^ means append new line, don't override old data
 	    	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
 	        for (int i=0; i<spectraList.size(); i++) {
-		        //TODO: berechnung der slopes und RNs
 		        bw.write(spectraList.get(i).datetime + "; " +
 			        spectraList.get(i).LT + "; " +
 			        spectraList.get(i).ADC1 + "; "+
@@ -1789,6 +1817,7 @@ public class RnLog extends JFrame {
         while ((line = bufferedReader.readLine()) != null) {
             extlines.add(line);
         }
+       
         bufferedReader.close();
         System.out.println("successfully loaded extract file");
         if(extlines.size()<2) {
@@ -1831,22 +1860,22 @@ public class RnLog extends JFrame {
         	flag[i] = 0;
         	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
         	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
-        	if((last - actual) > 1800000 ) {
+        	if((actual - last) > 1800000 ) {
         		//if (Datetime_last - Datetime_current) > 1800s
         		flag[i] = 1; //split here
-        		System.out.println("split " + (last - actual));
+        		System.out.println("split " + (actual - last));
         	}
-        	if((last - actual) < 60000 ) {
+        	if((actual - last) < 60000 ) {
         		//if (Datetime_last - Datetime_current) > 1800s
         		flag[i] = 2; //remove this
-        		System.out.println("remove " + (last - actual));
+        		System.out.println("remove " + (actual - last));
         	}
         }
         int j = 0;
         for (int i = 1; i< extlines.size(); i++) {
         	if (flag[i] == 0) {
         		tmpList.add(extlines.get(i));
-        		System.out.println("add " + extlines.get(i));
+        		System.out.println("add to extract file: " + extlines.get(i));
         	}
         	if ( flag[i] == 1) {
         		splittedExtlines.add((ArrayList<String>) tmpList.clone());
@@ -1862,7 +1891,7 @@ public class RnLog extends JFrame {
         }
         splittedExtlines.add((ArrayList<String>) tmpList.clone());
 		tmpList.clear();
-
+		
         //berechnung der Werte mit Stockburger
         System.out.println("Calculating Stockburger");
         for(int x = 0; x < splittedExtlines.size(); x++) {	        	
