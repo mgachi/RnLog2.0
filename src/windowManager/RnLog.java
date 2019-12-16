@@ -80,6 +80,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.Window.Type;
 
+
 public class RnLog extends JFrame {
 
 	/**
@@ -116,6 +117,8 @@ public class RnLog extends JFrame {
 	//the currently selected spectrum of the list
 	public int selectedSpecIdx = 0;
 	public Spectra RefSpec;
+	//Spectra File for the handling of the flagged Spectra
+	public  Spectra currentFlaggedSpectrum;
 	private JTable table;
 	public String SoftwareVersion = "RnLog 2.0";
 	Thread TLiveMode;
@@ -1002,7 +1005,28 @@ public class RnLog extends JFrame {
 			        bw.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
 			        bw.write("Format: \r\n");
 			        bw.write("Stoptime,Activity [Bq/m3], Ac[dps],Ac/dt,Total, Window, Edge, temp1[C], temp2[C], temp3[C], Pressure[mbar], LifeTime[sec], Flux[m3/s], ID \r\n");
-			        
+			        /*
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         * 
+			         */
 			        //split extlines to get rid of duplicates or  missing values
 			        ArrayList<ArrayList<String>> splittedExtlines = new ArrayList<ArrayList<String>>();
 			        ArrayList<ArrayList<String>> splittedActlines = new ArrayList<ArrayList<String>>();
@@ -1024,7 +1048,7 @@ public class RnLog extends JFrame {
 			        		System.out.println("split " + (actual - last));
 			        	}
 			        	if((actual - last) < 60000 ) {
-			        		//if (Datetime_last - Datetime_current) > 1800s
+			        		//if (Datetime_last - Datetime_current) < 600s
 			        		flag[i] = 2; //remove this
 			        		System.out.println("remove " + (actual - last));
 			        	}
@@ -1046,7 +1070,7 @@ public class RnLog extends JFrame {
 			        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
 			        		continue;
 			        	}
-			        }
+			         }
 
 			        splittedExtlines.add((ArrayList<String>) tmpList.clone());
 
@@ -1065,6 +1089,7 @@ public class RnLog extends JFrame {
 			        Boolean fill = false;
 			        if(ini.fill == 1) fill = true;
 			        if(!fill || splittedActlines.size() == 1) {
+			        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
 			        	System.out.println("Don't need to fill up");
 			        	//just write the results into the file if no filler is given or only one block was created
 				        for(int i=0; i<splittedActlines.size(); i++) {
@@ -1074,7 +1099,9 @@ public class RnLog extends JFrame {
 				        }
 			        } else {
 			        	//write the results into the file but every time a new block starts, fill it with the correct date and the filler
-			        	System.out.println("Fill Up with " + ini.filler);
+			        	//System.out.println("Fill Up with " + ini.filler);
+			        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
+			        	System.out.println("Filling up the missing values with " + ini.filler);
 			        	for(int i = 0; i < splittedActlines.size() ; i++) {
 			        		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
 			        			//TODO: stürzt ab wenn vorher nur 2 extlines da waren -> ="" und findet kein date time
@@ -1240,22 +1267,28 @@ public class RnLog extends JFrame {
 	
 	//helper function for copying files (flagged spectra into subfolder etc)
 	private static void copyFile(File source, File dest) throws IOException {
-		InputStream input = null;
-		OutputStream output = null;
+		//InputStream input = null;
+		//OutputStream output = null;
 		try {
-			input = new FileInputStream(source);
-			output = new FileOutputStream(dest);
+			InputStream input = new FileInputStream(source);
+			OutputStream output = new FileOutputStream(dest);
 			byte[] buf = new byte[1024];
 			int bytesRead;
 			while ((bytesRead = input.read(buf)) > 0) {
 				output.write(buf, 0, bytesRead);
+				output.flush();
 			}
-		} finally {
+		
 			input.close();
 			output.close();
+		} finally {
+			//input.close();
+			//output.close();
 		}
 	}
 	
+	
+		
 	public ArrayList<String> calcStockburger(ArrayList<String> extLines,  int points) {
 		System.out.println("Calculating these lines : ");
 		for ( int i =0; i< extLines.size(); i++) {
@@ -1418,7 +1451,14 @@ public class RnLog extends JFrame {
 					+ t2s[i] + "; " + t3s[i] + "; " + pressures[i] + "; " + LTs[i] + "; " + formatter.format(fluxs[i]).replaceAll(",", ".") + "; " 
 				    +  extLines.get(i).split(";")[36] /*ID*/ ;
 			actlines.add(actline);
-			System.out.println("adding " + actline);
+			
+			
+			
+			
+			//
+			//
+			//
+			//System.out.println("adding " + actline);
 		}
 		return actlines;
 	}
@@ -1651,7 +1691,7 @@ public class RnLog extends JFrame {
 	    	progressBar.setValue((int) (progress));
 	    	progressBar.setStringPainted(true);
 	    	//loop though the selected spectra, see if they need to be flagged
-	        int[] flaggedIdx = new int[spectraList.size()];
+	        ArrayList<Integer> flaggedIdx = new ArrayList<Integer>();
 	       
 	        for(int i=0; i<spectraList.size(); i++) {
 	        	//set edge of spectrum according to reference (if no edge is set yet)
@@ -1663,15 +1703,13 @@ public class RnLog extends JFrame {
 	        	//flag spectra
 	        	if(spectraList.get(i).edge > ini.Edgeoffset+ini.UpperFlagThres || spectraList.get(i).edge < ini.Edgeoffset-ini.LowerFlagThres) {
 	        		//for continue evaluation: remember these spectra and ask user to set edge manually
-	        		flagged.add(spectraList.get(i));
-	        		//save Spectrum in new subfolder \flagged
-	        		/*
-	        		File tmpFlagged = new File(spectraList.get(i).path.getParent()+ "\\flagged\\" + spectraList.get(i).name);
-	        		copyFile(spectraList.get(i).path, tmpFlagged);
-	        		flaggedIdx[i]=1;
-	        		System.out.println("copied " + spectraList.get(i).path.getPath() + " to " + tmpFlagged.getPath() );
+	        		
+	        		//add actual spectrum to list
+	        		flagged.add(spectraList.get(i));  
+	        		//add index of the flagged file to array
+	        		flaggedIdx.add(i);
+	        		 
 	        		continue;
-	        		*/
 	        	}
 	        }
 	        
@@ -1681,9 +1719,35 @@ public class RnLog extends JFrame {
 	        	int dialogResult = JOptionPane.showConfirmDialog (null, flagged.size() + " spectra have been flagged. Do you want to flag them manually?" ,"Continue evaluation", dialogButton);
 	        	if(dialogResult == JOptionPane.NO_OPTION){
 	        		bw.close();
+	        		
+	        		//moving  Spectra to the new flagged subfolder
+	        		new File(flagged.get(0).path.getParent()+ "\\flagged").mkdirs();
+	        		
+	        		for(int i=0; i<flagged.size(); i++) {
+	        			//removing the generated edge if the user currently don't want to set the edge manually
+	        			flagged.get(i).removeEdge();
+	        			
+		        		File tmpFlagged = new File(flagged.get(i).path.getParent()+ "\\flagged\\" + flagged.get(i).name);
+		        		copyFile(flagged.get(i).path, tmpFlagged);
+		        		System.out.println("copied " + flagged.get(i).path.getPath() + " to " + tmpFlagged.getPath() );
+		        		
+		        		//deleting file from the lvl2 directory if flagged
+		        		File file = new File(flagged.get(i).path.getPath());
+	        		    file.delete(); 
+	        		    System.out.println("File moved successfully"); 
+	        		    
+					}
+	        		
+	        		//removing flagged spectra from the extract file
+	        		for (int i = flaggedIdx.size() - 1; i >= 0; i--) {
+	        			spectraList.remove(flaggedIdx.get(i).intValue());
+	        			System.out.println("removing flagged spectrum at index " + flaggedIdx.get(i));
+	        		}
+	        		
+	        		tmpList = (ArrayList<Spectra>) spectraList.clone();
 	        		progressBar.setValue(0);
 	        		progressBar.setString("");
-	        		return;
+	        		continueEvaluation2(btnContinue);
 	        	} else {
 	        		//user wants to flag spectra himself
 	        		btnContinue.setVisible(true);
@@ -1875,7 +1939,7 @@ public class RnLog extends JFrame {
         for (int i = 1; i< extlines.size(); i++) {
         	if (flag[i] == 0) {
         		tmpList.add(extlines.get(i));
-        		System.out.println("add to extract file: " + extlines.get(i));
+        		//System.out.println("add to extract file: " + extlines.get(i));
         	}
         	if ( flag[i] == 1) {
         		splittedExtlines.add((ArrayList<String>) tmpList.clone());
@@ -1904,6 +1968,7 @@ public class RnLog extends JFrame {
         if(ini.fill == 1) fill = true;
         if(!fill || splittedActlines.size() == 1) {
         	System.out.println("Don't need to fill up");
+        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
         	//just write the results into the file if no filler is given or only one block was created
 	        for(int i=0; i<splittedActlines.size(); i++) {
 	        	for(int j1 = 0; j1 < splittedActlines.get(i).size() ; j1++) {
@@ -1913,10 +1978,19 @@ public class RnLog extends JFrame {
         } else {
         	//write the results into the file but every time a new block starts, fill it with the correct date and the filler
         	System.out.println("Fill Up with " + ini.filler);
+        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
         	for(int i = 0; i < splittedActlines.size() ; i++) {
         		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
         			//TODO: stürzt ab wenn vorher nur 2 extlines da waren -> ="" und findet kein date time
-	        		System.out.println( i + k + splittedActlines.get(i).get(k));
+        			//
+        			//
+        			//
+        			//
+        			//
+        			//
+        			//
+        			//
+	        		//System.out.println( i + k + splittedActlines.get(i).get(k));
         			bw.write(splittedActlines.get(i).get(k) + "\r\n");
         		}
         		try {
