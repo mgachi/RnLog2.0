@@ -80,7 +80,6 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.Window.Type;
 
-
 public class RnLog extends JFrame {
 
 	/**
@@ -694,7 +693,7 @@ public class RnLog extends JFrame {
 		        	copyFile(spectraList.get(selectedSpecIdx).path, tmpRejected);
 		        	System.out.println("copied " + spectraList.get(selectedSpecIdx).path.getPath() + " to " + tmpRejected.getPath() );
 		        		
-		        	//deleting file from the lvl2 directory if flagged
+		        	//deleting file from the lvl2 directory if rejected
 		        	File file = new File(spectraList.get(selectedSpecIdx).path.getPath());
 	        		file.delete(); 
 	        		System.out.println("File moved successfully"); 
@@ -1103,7 +1102,7 @@ public class RnLog extends JFrame {
 			        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
 			        		continue;
 			        	}
-			         }
+			        }
 
 			        splittedExtlines.add((ArrayList<String>) tmpList.clone());
 
@@ -1122,7 +1121,6 @@ public class RnLog extends JFrame {
 			        Boolean fill = false;
 			        if(ini.fill == 1) fill = true;
 			        if(!fill || splittedActlines.size() == 1) {
-			        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
 			        	System.out.println("Don't need to fill up");
 			        	//just write the results into the file if no filler is given or only one block was created
 				        for(int i=0; i<splittedActlines.size(); i++) {
@@ -1132,9 +1130,7 @@ public class RnLog extends JFrame {
 				        }
 			        } else {
 			        	//write the results into the file but every time a new block starts, fill it with the correct date and the filler
-			        	//System.out.println("Fill Up with " + ini.filler);
-			        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
-			        	System.out.println("Filling up the missing values with " + ini.filler);
+			        	System.out.println("Fill Up with " + ini.filler);
 			        	for(int i = 0; i < splittedActlines.size() ; i++) {
 			        		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
 			        			//TODO: stürzt ab wenn vorher nur 2 extlines da waren -> ="" und findet kein date time
@@ -1300,8 +1296,7 @@ public class RnLog extends JFrame {
 	
 	//helper function for copying files (flagged spectra into subfolder etc)
 	private static void copyFile(File source, File dest) throws IOException {
-		//InputStream input = null;
-		//OutputStream output = null;
+		
 		try {
 			InputStream input = new FileInputStream(source);
 			OutputStream output = new FileOutputStream(dest);
@@ -1315,11 +1310,8 @@ public class RnLog extends JFrame {
 			input.close();
 			output.close();
 		} finally {
-			//input.close();
-			//output.close();
 		}
 	}
-	
 	
 		
 	public ArrayList<String> calcStockburger(ArrayList<String> extLines,  int points) {
@@ -1733,8 +1725,6 @@ public class RnLog extends JFrame {
 	        		flagged.add(spectraList.get(i));  
 	        		//add index of the flagged file to array
 	        		flaggedIdx.add(i);
-	        		 
-	        		
 	        	}
 	        }
 	        
@@ -2055,5 +2045,3 @@ public class RnLog extends JFrame {
 		return false;
 	}
 }
-
-
