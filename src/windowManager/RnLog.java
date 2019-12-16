@@ -1486,20 +1486,25 @@ public class RnLog extends JFrame {
 		//helper function which gets the Date Time of a String (split it at ";" and convert to timeformat
 		//and returns a list of Strings with timestamps between
 		ArrayList<String> results = new ArrayList<String>();
+		
+		//time format used in the spactra
 		DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
-		DateFormat seconds = new SimpleDateFormat("ssss");
+		//extracting the time information from the first entry in the line
         Date first = formatter.parse(DT1.split(";")[0]);
         Date last = formatter.parse(DT2.split(";")[0]);
         long diff = last.getTime() - first.getTime();
+        
+        //failsafe for the time difference
 		if (diff < 1800000) {
 			return results;
 		}
+		//number of entries to fill
 		int fillingpoints = 0;
 		fillingpoints = (int) (diff/1800000);
-		for(int i = 0; i<fillingpoints; i++) {
-			Date newDate = new Date(first.getTime() + 1800000);
-			results.add(newDate.toString());
-			 System.out.println("fill this :" + newDate.toString());
+		for(int i = 1; i<fillingpoints; i++) {
+			Date newDate = new Date(first.getTime() + 1800000*i);
+			results.add(formatter.format(newDate));
+			 System.out.println("fill this :" + formatter.format(newDate));
 		}
 		return results;
 	}
@@ -2005,12 +2010,14 @@ public class RnLog extends JFrame {
         	for(int i = 0; i < splittedActlines.size() ; i++) {
         		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
         			//TODO: stürzt ab wenn vorher nur 2 extlines da waren -> ="" und findet kein date time
-        			System.out.println( i + k + splittedActlines.get(i).get(k));
+        			System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
         			bw.write(splittedActlines.get(i).get(k) + "\r\n");
         		}
         		try {
-        			String last = splittedActlines.get(i).get(  splittedActlines.get(i).size()   );
-        			String next = splittedActlines.get(i+1).get(  splittedActlines.get(i+1).size()   );
+        			//taking last line form the current peace and first line from the next piece
+        			//calculate time difference and number of entries to fill
+        			String last = splittedActlines.get(i).get(splittedActlines.get(i).size()-1);
+        			String next = splittedActlines.get(i+1).get(0);
         			ArrayList<String> fillingStrings = getDateTimeBetween(last, next);
         			for (int l = 0; l < fillingStrings.size(); l++) {
         				bw.write(fillingStrings.get(l) + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler  + "\r\n");
