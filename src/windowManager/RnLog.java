@@ -80,7 +80,6 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.Window.Type;
 
-
 public class RnLog extends JFrame {
 
 	/**
@@ -117,8 +116,6 @@ public class RnLog extends JFrame {
 	//the currently selected spectrum of the list
 	public int selectedSpecIdx = 0;
 	public Spectra RefSpec;
-	//Spectra File for the handling of the flagged Spectra
-	public  Spectra currentFlaggedSpectrum;
 	private JTable table;
 	public String SoftwareVersion = "RnLog 2.0";
 	Thread TLiveMode;
@@ -1005,28 +1002,7 @@ public class RnLog extends JFrame {
 			        bw.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
 			        bw.write("Format: \r\n");
 			        bw.write("Stoptime,Activity [Bq/m3], Ac[dps],Ac/dt,Total, Window, Edge, temp1[C], temp2[C], temp3[C], Pressure[mbar], LifeTime[sec], Flux[m3/s], ID \r\n");
-			        /*
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         * 
-			         */
+			        
 			        //split extlines to get rid of duplicates or  missing values
 			        ArrayList<ArrayList<String>> splittedExtlines = new ArrayList<ArrayList<String>>();
 			        ArrayList<ArrayList<String>> splittedActlines = new ArrayList<ArrayList<String>>();
@@ -1070,7 +1046,7 @@ public class RnLog extends JFrame {
 			        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
 			        		continue;
 			        	}
-			         }
+			        }
 
 			        splittedExtlines.add((ArrayList<String>) tmpList.clone());
 
@@ -1089,7 +1065,6 @@ public class RnLog extends JFrame {
 			        Boolean fill = false;
 			        if(ini.fill == 1) fill = true;
 			        if(!fill || splittedActlines.size() == 1) {
-			        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
 			        	System.out.println("Don't need to fill up");
 			        	//just write the results into the file if no filler is given or only one block was created
 				        for(int i=0; i<splittedActlines.size(); i++) {
@@ -1099,9 +1074,7 @@ public class RnLog extends JFrame {
 				        }
 			        } else {
 			        	//write the results into the file but every time a new block starts, fill it with the correct date and the filler
-			        	//System.out.println("Fill Up with " + ini.filler);
-			        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
-			        	System.out.println("Filling up the missing values with " + ini.filler);
+			        	System.out.println("Fill Up with " + ini.filler);
 			        	for(int i = 0; i < splittedActlines.size() ; i++) {
 			        		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
 			        			//TODO: stürzt ab wenn vorher nur 2 extlines da waren -> ="" und findet kein date time
@@ -1267,8 +1240,6 @@ public class RnLog extends JFrame {
 	
 	//helper function for copying files (flagged spectra into subfolder etc)
 	private static void copyFile(File source, File dest) throws IOException {
-		//InputStream input = null;
-		//OutputStream output = null;
 		try {
 			InputStream input = new FileInputStream(source);
 			OutputStream output = new FileOutputStream(dest);
@@ -1282,13 +1253,10 @@ public class RnLog extends JFrame {
 			input.close();
 			output.close();
 		} finally {
-			//input.close();
-			//output.close();
+			
 		}
 	}
-	
-	
-		
+			
 	public ArrayList<String> calcStockburger(ArrayList<String> extLines,  int points) {
 		System.out.println("Calculating these lines : ");
 		for ( int i =0; i< extLines.size(); i++) {
@@ -1452,13 +1420,7 @@ public class RnLog extends JFrame {
 				    +  extLines.get(i).split(";")[36] /*ID*/ ;
 			actlines.add(actline);
 			
-			
-			
-			
-			//
-			//
-			//
-			//System.out.println("adding " + actline);
+			System.out.println("adding " + actline);
 		}
 		return actlines;
 	}
@@ -1982,15 +1944,7 @@ public class RnLog extends JFrame {
         	for(int i = 0; i < splittedActlines.size() ; i++) {
         		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
         			//TODO: stürzt ab wenn vorher nur 2 extlines da waren -> ="" und findet kein date time
-        			//
-        			//
-        			//
-        			//
-        			//
-        			//
-        			//
-        			//
-	        		//System.out.println( i + k + splittedActlines.get(i).get(k));
+        			System.out.println( i + k + splittedActlines.get(i).get(k));
         			bw.write(splittedActlines.get(i).get(k) + "\r\n");
         		}
         		try {
@@ -2031,5 +1985,3 @@ public class RnLog extends JFrame {
 	}
 
 }
-
-
