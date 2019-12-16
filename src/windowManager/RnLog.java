@@ -80,6 +80,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.Window.Type;
 
+
 public class RnLog extends JFrame {
 
 	/**
@@ -120,7 +121,8 @@ public class RnLog extends JFrame {
 	public String SoftwareVersion = "RnLog 2.0";
 	Thread TLiveMode;
 	//for continue evaluation mode
-	public  ArrayList<Spectra> flagged = new ArrayList<Spectra>();
+	public ArrayList<Spectra> flagged = new ArrayList<Spectra>();
+	public ArrayList<Integer> flaggedIdx = new ArrayList<Integer>();
 	public int currentflaggedSpec = 0;
 	public File extract = null;
 	public File activity = null;
@@ -675,6 +677,61 @@ public class RnLog extends JFrame {
 		lblMoveEdge_1.setBounds(10, 76, 126, 14);
 		panel_3.add(lblMoveEdge_1);	
 		
+		JButton rejectSpectrum = new JButton("Reject");
+		rejectSpectrum.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				if(spectraList.size() == 0) return;
+				try {
+					
+	        		//moving spectra to the new rejected subfolder
+	        		new File(spectraList.get(selectedSpecIdx).path.getParent()+ "\\rejected").mkdirs();
+	        		
+	        		//removing edge in the rejected spectrum
+	        		spectraList.get(selectedSpecIdx).removeEdge();
+	        		
+	        		//creating copy of the spectrum in the rejected folder
+		        	File tmpRejected = new File(spectraList.get(selectedSpecIdx).path.getParent()+ "\\rejected\\" + spectraList.get(selectedSpecIdx).name);
+		        	copyFile(spectraList.get(selectedSpecIdx).path, tmpRejected);
+		        	System.out.println("copied " + spectraList.get(selectedSpecIdx).path.getPath() + " to " + tmpRejected.getPath() );
+		        		
+		        	//deleting file from the lvl2 directory if flagged
+		        	File file = new File(spectraList.get(selectedSpecIdx).path.getPath());
+	        		file.delete(); 
+	        		System.out.println("File moved successfully"); 
+	        		
+	        		//removing spectrum from the spectra list and showing next
+	        		spectraList.remove(selectedSpecIdx);
+	        		
+	        		//if the reject procedure is run during the manual edge set for the flagged spectra 
+	        		//this lines will ensure that corrected information is passed on 
+	        		if(!flaggedIdx.isEmpty()) {
+	        			flaggedIdx.remove(selectedSpecIdx);
+	    			}
+	        		
+	        		if (selectedSpecIdx <= spectraList.size()-1) {
+	        			//showing next if there is a next spectrum
+	        			tfEdge.setText(spectraList.get(selectedSpecIdx).showSpectra(chartPanel));
+	        		} else {
+	        			//showing previous if it is the end of the list
+	        			tfEdge.setText(spectraList.get(selectedSpecIdx-1).showSpectra(chartPanel));
+	        			selectedSpecIdx--;
+	        			
+	        		}
+	        		
+				} catch (Exception e1) {
+					System.out.println("no spectrum found -> out of bounds");
+					JOptionPane.showMessageDialog(null, "There are no more spectra to show", "List empty", JOptionPane.INFORMATION_MESSAGE);
+					//e1.printStackTrace();
+					
+				}
+				
+			}
+		});
+		rejectSpectrum.setBackground(SystemColor.inactiveCaption);
+		rejectSpectrum.setToolTipText("Remove current spectrum from the evaluation cycle and move it to the rejected folder.");
+		rejectSpectrum.setBounds(10, 129, 120, 20);
+		panel_3.add(rejectSpectrum);
+		
 		JButton btnReadMemoryCard = new JButton("Read Memory Card");
 		btnReadMemoryCard.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
@@ -1002,7 +1059,7 @@ public class RnLog extends JFrame {
 			        bw.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
 			        bw.write("Format: \r\n");
 			        bw.write("Stoptime,Activity [Bq/m3], Ac[dps],Ac/dt,Total, Window, Edge, temp1[C], temp2[C], temp3[C], Pressure[mbar], LifeTime[sec], Flux[m3/s], ID \r\n");
-			        
+			      
 			        //split extlines to get rid of duplicates or  missing values
 			        ArrayList<ArrayList<String>> splittedExtlines = new ArrayList<ArrayList<String>>();
 			        ArrayList<ArrayList<String>> splittedActlines = new ArrayList<ArrayList<String>>();
@@ -1046,7 +1103,7 @@ public class RnLog extends JFrame {
 			        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
 			        		continue;
 			        	}
-			        }
+			         }
 
 			        splittedExtlines.add((ArrayList<String>) tmpList.clone());
 
@@ -1065,6 +1122,7 @@ public class RnLog extends JFrame {
 			        Boolean fill = false;
 			        if(ini.fill == 1) fill = true;
 			        if(!fill || splittedActlines.size() == 1) {
+			        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
 			        	System.out.println("Don't need to fill up");
 			        	//just write the results into the file if no filler is given or only one block was created
 				        for(int i=0; i<splittedActlines.size(); i++) {
@@ -1074,7 +1132,9 @@ public class RnLog extends JFrame {
 				        }
 			        } else {
 			        	//write the results into the file but every time a new block starts, fill it with the correct date and the filler
-			        	System.out.println("Fill Up with " + ini.filler);
+			        	//System.out.println("Fill Up with " + ini.filler);
+			        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
+			        	System.out.println("Filling up the missing values with " + ini.filler);
 			        	for(int i = 0; i < splittedActlines.size() ; i++) {
 			        		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
 			        			//TODO: stürzt ab wenn vorher nur 2 extlines da waren -> ="" und findet kein date time
@@ -1240,6 +1300,8 @@ public class RnLog extends JFrame {
 	
 	//helper function for copying files (flagged spectra into subfolder etc)
 	private static void copyFile(File source, File dest) throws IOException {
+		//InputStream input = null;
+		//OutputStream output = null;
 		try {
 			InputStream input = new FileInputStream(source);
 			OutputStream output = new FileOutputStream(dest);
@@ -1253,10 +1315,13 @@ public class RnLog extends JFrame {
 			input.close();
 			output.close();
 		} finally {
-			
+			//input.close();
+			//output.close();
 		}
 	}
-			
+	
+	
+		
 	public ArrayList<String> calcStockburger(ArrayList<String> extLines,  int points) {
 		System.out.println("Calculating these lines : ");
 		for ( int i =0; i< extLines.size(); i++) {
@@ -1419,7 +1484,6 @@ public class RnLog extends JFrame {
 					+ t2s[i] + "; " + t3s[i] + "; " + pressures[i] + "; " + LTs[i] + "; " + formatter.format(fluxs[i]).replaceAll(",", ".") + "; " 
 				    +  extLines.get(i).split(";")[36] /*ID*/ ;
 			actlines.add(actline);
-			
 			System.out.println("adding " + actline);
 		}
 		return actlines;
@@ -1652,9 +1716,8 @@ public class RnLog extends JFrame {
 	    	double progress = 0;
 	    	progressBar.setValue((int) (progress));
 	    	progressBar.setStringPainted(true);
-	    	//loop though the selected spectra, see if they need to be flagged
-	        ArrayList<Integer> flaggedIdx = new ArrayList<Integer>();
-	       
+	    	
+	    	//loop though the selected spectra, see if they need to be flagged	       
 	        for(int i=0; i<spectraList.size(); i++) {
 	        	//set edge of spectrum according to reference (if no edge is set yet)
 	        	spectraList.get(i).showSpectra(chartPanel);
@@ -1671,10 +1734,21 @@ public class RnLog extends JFrame {
 	        		//add index of the flagged file to array
 	        		flaggedIdx.add(i);
 	        		 
-	        		continue;
+	        		
 	        	}
 	        }
 	        
+	      //removing flagged spectra from the spectra list
+    		for (int i = flaggedIdx.size() - 1; i >= 0; i--) {
+    			spectraList.remove(flaggedIdx.get(i).intValue());
+    			System.out.println("removing flagged spectrum at index " + flaggedIdx.get(i));
+    		}
+	        
+    		//changing flaggedIdx reference to spectraList array WITHOUT flagged spectra
+    		for (int i = 0; i < flaggedIdx.size(); i++) {
+    			flaggedIdx.set(i, flaggedIdx.get(i)-i);
+    		}
+    		
 	        //ask user to set the edge on flagged spectra again manually
 	        if (flagged.size()>0) {
 	        	int dialogButton = JOptionPane.YES_NO_OPTION;
@@ -1700,13 +1774,6 @@ public class RnLog extends JFrame {
 	        		    
 					}
 	        		
-	        		//removing flagged spectra from the extract file
-	        		for (int i = flaggedIdx.size() - 1; i >= 0; i--) {
-	        			spectraList.remove(flaggedIdx.get(i).intValue());
-	        			System.out.println("removing flagged spectrum at index " + flaggedIdx.get(i));
-	        		}
-	        		
-	        		tmpList = (ArrayList<Spectra>) spectraList.clone();
 	        		progressBar.setValue(0);
 	        		progressBar.setString("");
 	        		continueEvaluation2(btnContinue);
@@ -1737,13 +1804,17 @@ public class RnLog extends JFrame {
 	public void continueEvaluation2(JButton btnContinue) {
 		FileOutputStream fileOut;
 		try {
+			//user set the edge of some spectra manually
 			if(!tmpList.isEmpty()) {
-				//user set the edge of some spectra manually
-				//for(int j =0; j< tmpList.size(); j++) {
-					//spectraList.add(tmpList.get(j));
-				//}
+
+				//adding corrected spectra to the proper place in the array
+				for (int i = 0; i < flaggedIdx.size(); i++) {
+					tmpList.add(flaggedIdx.get(i)+i, spectraList.get(i));
+	    		}
+				
 				spectraList = (ArrayList<Spectra>) tmpList.clone();
 				tmpList.clear();
+				flaggedIdx.clear();
 			}
 			
 			//spectraList needs to be reversed in order
@@ -1983,5 +2054,6 @@ public class RnLog extends JFrame {
 		}
 		return false;
 	}
-
 }
+
+
