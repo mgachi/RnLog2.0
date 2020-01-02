@@ -854,7 +854,10 @@ public class RnLog extends JFrame {
 		JMenuItem mntmNewMenuItem_3 = new JMenuItem("Evaluation Settings");
 		mntmNewMenuItem_3.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-					EvalIniDialog dialog = new EvalIniDialog();
+				if (ini._pathToIniFile == null) {
+					iniFile ini = new iniFile();
+					} 
+					EvalIniDialog dialog = new EvalIniDialog(ini);
 					dialog.setVisible(true);
 			}
 		});
@@ -1105,12 +1108,10 @@ public class RnLog extends JFrame {
 			        }
 
 			        splittedExtlines.add((ArrayList<String>) tmpList.clone());
-
 	        		tmpList.clear();
 
 
-			        //berechnung der Werte mit Stockburger
-			        
+			        //values calculation using the Stockburger method			        
 			        System.out.println("Calculating Stockburger");
 			        for(int x = 0; x < splittedExtlines.size(); x++) {	        	
 			        	splittedActlines.add((ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone());
@@ -1134,25 +1135,24 @@ public class RnLog extends JFrame {
 			        	for(int i = 0; i < splittedActlines.size() ; i++) {
 			        		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
 			        			//TODO: stürzt ab wenn vorher nur 2 extlines da waren -> ="" und findet kein date time
-				        		System.out.println( i + k + splittedActlines.get(i).get(k));
+				        		System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
 			        			bw.write(splittedActlines.get(i).get(k) + "\r\n");
 			        		}
 			        		try {
-			        			String last = splittedActlines.get(i).get(  splittedActlines.get(i).size()   );
-			        			String next = splittedActlines.get(i+1).get(  splittedActlines.get(i+1).size()   );
+			        			//taking last line form the current peace and first line from the next piece
+			        			//calculate time difference and number of entries to fill
+			        			String last = splittedActlines.get(i).get(splittedActlines.get(i).size()-1);
+			        			String next = splittedActlines.get(i+1).get(0);
 			        			ArrayList<String> fillingStrings = getDateTimeBetween(last, next);
 			        			for (int l = 0; l < fillingStrings.size(); l++) {
-			        				bw.write(fillingStrings.get(l) + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler  + "\r\n");
+			        				bw.write(fillingStrings.get(l)+ ";" + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + "\r\n");
 			        			}
 			        		} catch (Exception e2) {
 			        			//could not access splittedActlines.get(i+1) -> filling done
 			        			break;
 			        		}
-			        		
 			        	}
 			        }
-
-			        
 			        bw.close();
 				} catch (Exception e3) {
 					e3.printStackTrace();
@@ -1294,7 +1294,7 @@ public class RnLog extends JFrame {
          }
 	}
 	
-	//helper function for copying files (flagged spectra into subfolder etc)
+	//helper function for copying files (e.g. flagged spectra into subfolder)
 	private static void copyFile(File source, File dest) throws IOException {
 		
 		try {
@@ -1321,7 +1321,9 @@ public class RnLog extends JFrame {
 		}
 		
 		//load *.ini file
-		iniFile ini = new iniFile();
+		if (ini._pathToIniFile == null) {
+			iniFile ini = new iniFile();
+			} 
 		
 		long[] timeDiffs = new long[extLines.size()]; //LT, total, window, Po212, timeDifference, Ac
 		int[] LTs = new int[extLines.size()];
@@ -1516,7 +1518,9 @@ public class RnLog extends JFrame {
 	public void continueEvaluation(JProgressBar progressBar, ChartPanel chartPanel, JPanel panel, JButton btnContinue) {
 		//Search where the last evaluation ended and start a new one
 		//expects lvl0, lvl2 and lvl1 directories
-		iniFile ini = new iniFile();
+		if (ini._pathToIniFile == null) {
+			iniFile ini = new iniFile();
+			} 
 		System.out.println("setting the progress bar");
 		progressBar.setStringPainted(true);
 		progressBar.setString("gathering spectra from lvl0 and lvl2");
@@ -1766,7 +1770,6 @@ public class RnLog extends JFrame {
 		        		File file = new File(flagged.get(i).path.getPath());
 	        		    file.delete(); 
 	        		    System.out.println("File moved successfully"); 
-	        		    
 					}
 	        		
 	        		progressBar.setValue(0);
@@ -1810,6 +1813,7 @@ public class RnLog extends JFrame {
 				spectraList = (ArrayList<Spectra>) tmpList.clone();
 				tmpList.clear();
 				flaggedIdx.clear();
+				flagged.clear();
 			}
 			
 			//spectraList needs to be reversed in order
@@ -2020,8 +2024,8 @@ public class RnLog extends JFrame {
         			String next = splittedActlines.get(i+1).get(0);
         			ArrayList<String> fillingStrings = getDateTimeBetween(last, next);
         			for (int l = 0; l < fillingStrings.size(); l++) {
-        				bw.write(fillingStrings.get(l) + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler  + "\r\n");
-        			}
+        				bw.write(fillingStrings.get(l)+ ";" + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + "\r\n");
+        				}
         		} catch (Exception e2) {
         			//could not access splittedActlines.get(i+1) -> filling done
         			break;
