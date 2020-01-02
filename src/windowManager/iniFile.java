@@ -81,6 +81,27 @@ public class iniFile {
 		}
 	}
 	
+	public iniFile(File selectedIniFile) {
+		
+		String fileExtention = selectedIniFile.getName().substring(selectedIniFile.getName().length() - 3);
+		
+   		if(fileExtention == "ini") {
+   			System.out.println("You have selected this ini file:\n" +selectedIniFile);
+   			} else {System.out.println("You have to selected ini file!");
+   			return;
+   			}
+   		try {
+			loadIniFile(selectedIniFile);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			System.out.println("Could not open " + selectedIniFile + ". Maybe it has been deleted?");
+			e.printStackTrace();
+		}
+		
+		
+	}
+	
+	
 	public File getINIFile () {
 		//get the ini file of the working directory if possible
 		File file;
@@ -130,6 +151,8 @@ public class iniFile {
         	System.out.println(lines.get(i));
     	}*/
         bufferedReader.close();
+        
+        this._pathToIniFile = file;
         
         //save values in this class
         for (int i=0; i<lines.size(); i++) {

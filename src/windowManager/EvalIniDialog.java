@@ -5,8 +5,12 @@ import java.awt.FlowLayout;
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
+import javax.swing.JFileChooser;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+
+import org.jfree.chart.ChartPanel;
+
 import javax.swing.JTable;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
@@ -14,6 +18,8 @@ import javax.swing.JPopupMenu;
 import java.awt.Component;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
+
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JCheckBox;
@@ -44,13 +50,17 @@ public class EvalIniDialog extends JDialog {
 	private JTextField tfFluxchannel;
 	private JTextField tfFiller;
 	private JCheckBox chckbxfillup;
+	private JLabel tfIniFilePath;
 
 	/**
 	 * Launch the application.
 	 */
 	public static void main(String[] args) {
 		try {
-			EvalIniDialog dialog = new EvalIniDialog();
+			
+			iniFile ini = new iniFile();
+			
+			EvalIniDialog dialog = new EvalIniDialog(ini);
 			dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 			dialog.setVisible(true);
 		} catch (Exception e) {
@@ -61,11 +71,9 @@ public class EvalIniDialog extends JDialog {
 	/**
 	 * Create the dialog.
 	 */
-	public EvalIniDialog() {
+	public EvalIniDialog(iniFile ini) {
 		
-		iniFile ini = new iniFile();
-		
-		setBounds(100, 100, 819, 300);
+		setBounds(100, 100, 819, 377);
 		getContentPane().setLayout(new BorderLayout());
 		contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
 		getContentPane().add(contentPanel, BorderLayout.CENTER);
@@ -254,6 +262,102 @@ public class EvalIniDialog extends JDialog {
 		tfFiller.setBounds(372, 161, 86, 20);
 		tfFiller.setText(ini.filler);
 		contentPanel.add(tfFiller);
+		
+		JLabel lblUsedIniFile = new JLabel("used ini file:");
+		lblUsedIniFile.setBounds(10, 184, 75, 14);
+		contentPanel.add(lblUsedIniFile);
+		
+		tfIniFilePath = new JLabel();
+		tfIniFilePath.setBounds(10, 200, 368, 20);
+		contentPanel.add(tfIniFilePath);
+		if (ini._pathToIniFile == null) {tfIniFilePath.setText("no ini file was found or it cannot be loaded");
+		} else {tfIniFilePath.setText(""+ini._pathToIniFile);			
+		}
+		
+		JButton btnBrowse = new JButton("Browse");
+		btnBrowse.setBounds(538, 197, 89, 23);
+		contentPanel.add(btnBrowse);
+				
+		btnBrowse.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				
+				//Create a file chooser
+		        final JFileChooser fileDialog = new JFileChooser();
+		        
+		        //only show not hidden files
+		        fileDialog.setFileHidingEnabled(true);
+		        
+		        //TODO: home directory als start ausw#hlen
+		        //fileDialog.setCurrentDirectory(System.getProperty("user.dir"));
+		        
+		       
+		        //to select mulitple files
+		        fileDialog.setMultiSelectionEnabled(false);
+		        //In response to a button click:
+		        int option = fileDialog.showOpenDialog(null);
+		        
+		        //defined globally
+		        if(option == JFileChooser.APPROVE_OPTION) {
+		        	
+		            /*final*/ File file = fileDialog.getSelectedFile();
+		        	System.out.println("get selected files");
+		            if (file != null){
+	               		//passing file to the ini method
+	               		try {
+	               			ini.loadIniFile(file); //= new iniFile(file);
+	               			System.out.println(""+ini._pathToIniFile);
+	               			dispose();
+	               			EvalIniDialog dialog = new EvalIniDialog(ini);
+	               			dialog.setVisible(true);
+	               			System.out.println("Trying to refresh the window");
+	               			System.out.println(""+ini._pathToIniFile);
+	               			
+	               		} catch (Exception e) {// somewhere here is an error, I don't know where
+	               			// TODO Auto-generated catch block
+	               			System.out.println("Something went wrong, maybe the file is already opened?");
+	               			e.printStackTrace();
+	               		}
+		            }
+		            //here should we some how refresh the values of the eval setting 
+		            //but we cannot use this method directly, because it initiates the iniFile()
+		            //Ideas?
+		         } else if (option == JFileChooser.CANCEL_OPTION){
+		             System.out.println("User cancelled operation. No file was chosen.");  
+		         }
+			
+				
+			}
+		});
+		
+		JLabel lblRawDataFolder = new JLabel("Folder with raw data:");
+		lblRawDataFolder.setBounds(10, 223, 127, 14);
+		contentPanel.add(lblRawDataFolder);
+		
+		JLabel lblRawDataPath = new JLabel();
+		lblRawDataPath.setBounds(10, 237, 368, 14);
+		contentPanel.add(lblRawDataPath);
+		lblRawDataPath.setText(""+ini.lvl0);			
+		
+		JLabel lblBrowsedDataFolder = new JLabel("Folder with browsed data:");
+		lblBrowsedDataFolder.setBounds(10, 251, 152, 14);
+		contentPanel.add(lblBrowsedDataFolder);
+		
+		JLabel lblBrowsedDataPath = new JLabel();
+		lblBrowsedDataPath.setBounds(10, 265, 352, 14);
+		contentPanel.add(lblBrowsedDataPath);
+		lblBrowsedDataPath.setText(""+ini.lvl2);
+		/*
+		JLabel lblBrowsedDataFolder = new JLabel("Folder with browsed data:");
+		lblRawDataFolder.setBounds(10, 251, 113, 14);
+		contentPanel.add(lblBrowsedDataFolder);
+		
+		JLabel lblBrowsedDataPath = new JLabel();
+		lblRawDataPath.setBounds(10, 265, 219, 14);
+		contentPanel.add(lblBrowsedDataPath);
+		lblRawDataPath.setText(""+ini.lvl2);
+		*/
+		
+		
 		{
 			JPanel buttonPane = new JPanel();
 			buttonPane.setLayout(new FlowLayout(FlowLayout.RIGHT));
@@ -264,7 +368,7 @@ public class EvalIniDialog extends JDialog {
 					public void actionPerformed(ActionEvent e) {
 						//Save Evaluation Settings and close Dialog
 						try {
-							ini.overwriteIniFile(ini.getINIFile(), tfMonitorID, tfNoiseThreshold, tfWindowThreshold, tfLowerFitThreshold, tfUpperFitThreshold, tfLowerFlagThreshold, 
+							ini.overwriteIniFile(ini._pathToIniFile, tfMonitorID, tfNoiseThreshold, tfWindowThreshold, tfLowerFitThreshold, tfUpperFitThreshold, tfLowerFlagThreshold, 
 									tfUpperFlagThreshold, tfFluxslope, tfFluxoffset, tfSolidangle, tfDisequilibriumfactor, tfHoentzsch, tfInterval, tfEdgeoffset, tfIPAdress, tfFluxchannel, tfFiller, chckbxfillup
 									);
 							dispose();
