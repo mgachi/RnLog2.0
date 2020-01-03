@@ -191,6 +191,9 @@ public class RnLog extends JFrame {
 		JMenuItem mntmNewMenuItem_2 = new JMenuItem("Make Activity File");
 		mnNewMenu.add(mntmNewMenuItem_2);
 		
+		JMenuItem mntmNewMenuItem_8 = new JMenuItem("Make Activity File from multiple Log (txt) Files");
+		mnNewMenu.add(mntmNewMenuItem_8);
+		
 		JMenuItem mntmNewMenuItem_7 = new JMenuItem("Continue Evaluation");
 		mnNewMenu.add(mntmNewMenuItem_7);
 		
@@ -971,7 +974,7 @@ public class RnLog extends JFrame {
 
 		});
 		
-		//make activity file
+		//make activity file from a single file
 		mntmNewMenuItem_2.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				//who created the file
@@ -1071,50 +1074,50 @@ public class RnLog extends JFrame {
 			        // 0-> dont split; 1-> split; 2-> delete 
 			        int[] flag = new int[extlines.size()];
 			        flag[1] = 0;
+			        tmpList.add(extlines.get(1));
+			        int j = 0;
 			        DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
 			        
 			        for (int i = 2; i< extlines.size(); i++) {
-			        	flag[i] = 0;
+			        	
 			        	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
 			        	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
 			        	if((actual - last) > 1800000 ) {
 			        		//if (Datetime_last - Datetime_current) > 1800s
 			        		flag[i] = 1; //split here
 			        		System.out.println("split " + (actual - last));
-			        	}
-			        	if((actual - last) < 60000 ) {
-			        		//if (Datetime_last - Datetime_current) < 600s
-			        		flag[i] = 2; //remove this
-			        		System.out.println("remove " + (actual - last));
-			        	}
-			        }
-			        int j = 0;
-			        for (int i = 1; i< extlines.size(); i++) {
-			        	if (flag[i] == 0) {
-			        		tmpList.add(extlines.get(i));
-			        		System.out.println("add " + extlines.get(i));
-			        	}
-			        	if ( flag[i] == 1) {
 			        		splittedExtlines.add((ArrayList<String>) tmpList.clone());
 			        		tmpList.clear();
 			        		j++;
 			        		tmpList.add(extlines.get(i));
 			        		System.out.println("new Array of extLines " + extlines.get(i));
 			        	}
-			        	if ( flag[i] == 2) {
-			        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
-			        		continue;
-			        	}
+				        	else if((actual - last) < 60000 ) {
+				        		//if (Datetime_last - Datetime_current) < 600s
+				        		flag[i] = 2; //remove this
+				        		System.out.println("remove " + (actual - last));
+				        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
+				        		continue;
+				        	}
+				        	else {
+				        		flag[i] = 0;
+					        	tmpList.add(extlines.get(i));
+				        		System.out.println("add " + extlines.get(i));
+				        	}		        	
 			        }
-
+			        
 			        splittedExtlines.add((ArrayList<String>) tmpList.clone());
 	        		tmpList.clear();
 
 
 			        //values calculation using the Stockburger method			        
 			        System.out.println("Calculating Stockburger");
-			        for(int x = 0; x < splittedExtlines.size(); x++) {	        	
-			        	splittedActlines.add((ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone());
+			        for(int x = 0; x < splittedExtlines.size(); x++) {	
+			        	tmpList = (ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone();
+			        	if (tmpList.get(0) == "") {
+			        		continue;
+		        	}
+		        	splittedActlines.add(tmpList);
 			        }
 			        
 			        //gather and fuse, if fill == true
@@ -1134,7 +1137,6 @@ public class RnLog extends JFrame {
 			        	System.out.println("Fill Up with " + ini.filler);
 			        	for(int i = 0; i < splittedActlines.size() ; i++) {
 			        		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
-			        			//TODO: stürzt ab wenn vorher nur 2 extlines da waren -> ="" und findet kein date time
 				        		System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
 			        			bw.write(splittedActlines.get(i).get(k) + "\r\n");
 			        		}
@@ -1158,6 +1160,266 @@ public class RnLog extends JFrame {
 					e3.printStackTrace();
 				}
 
+			}
+		});
+		
+		//make activity file from multiple log files
+		mntmNewMenuItem_8.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				try {
+					//who created the file
+					String evaluator = (String) JOptionPane.showInputDialog(null,"Evaluated by:",
+	                        "Creating ACT File",
+	                        JOptionPane.PLAIN_MESSAGE, null, null, "Your name");
+					if(evaluator == null || (evaluator != null && ("".equals(evaluator)))) {
+						    return;
+					}
+					System.out.println("Evaluator: " + evaluator);
+					//select extract file
+					//Create a file chooser
+			        final JFileChooser actDialog = new JFileChooser();
+			        
+			        //only show not hidden files
+			        actDialog.setFileHidingEnabled(true);
+			        //to select multiple files
+			        actDialog.setMultiSelectionEnabled(true);
+			        //In response to a button click:
+			        int option = actDialog.showOpenDialog(null);
+			        
+			        File[] extFiles;
+			        if(option == JFileChooser.APPROVE_OPTION) {
+			        	extFiles = actDialog.getSelectedFiles();
+			        	
+			        	//creating one log file out of multiple
+				        ArrayList<String> extlines = new ArrayList<String>();
+			            if (extFiles != null && extFiles.length > 0){
+			            	for (int x = 0; x < extFiles.length; x++) { 
+			            			            		
+			            		FileReader fileReader;
+			    				fileReader = new FileReader(extFiles[x]);
+			    		        BufferedReader bufferedReader = new BufferedReader(fileReader);	    		        
+			    		        String line = null;
+			    		        line = bufferedReader.readLine();
+			    		        while ((line = bufferedReader.readLine()) != null) {
+			    		            extlines.add(line);
+			    		        }
+			    		        bufferedReader.close();
+			    		        System.out.println("successfully loaded extract file number " + (x + 1));
+			            		
+			                }
+			            }
+				        
+			            //sorting entries in the final extract file by the measurement time
+			            DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
+			            int minIndex;
+				        for (int i = 0; i<extlines.size()-1; i++) {
+				        	String minTimeExtLine = extlines.get(i);
+				        	minIndex = i;
+				        	for (int j = i+1; j< extlines.size(); j++) {
+					        	long currentMin = formatter.parse(minTimeExtLine.split(";")[0]).getTime();
+					        	long currentLine =  formatter.parse(extlines.get(j).split(";")[0]).getTime();
+					        	if(currentMin > currentLine) {
+					        		minTimeExtLine = extlines.get(j);
+					        		minIndex = j;
+					        	}
+					        }
+				        	
+				        	//changing places of current i element with the minimum of the remaining
+				        	extlines.set(minIndex, extlines.get(i));
+				        	extlines.set(i, minTimeExtLine);
+		
+				        }
+				        
+				        int dialogButton = JOptionPane.YES_NO_OPTION;
+			        	int dialogResult = JOptionPane.showConfirmDialog (null, "Would you like to save combined and sorted Log file?" ,"Save new Log file?", dialogButton);
+			        	if(dialogResult == JOptionPane.YES_OPTION){
+			        		JFileChooser fileChooser = new JFileChooser();
+			        		
+			        		if (fileChooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
+			        		  File newExtFile = fileChooser.getSelectedFile();
+			        		  try {
+			        			  String newFilePath = newExtFile.getPath();
+			        			  if (!(newFilePath.substring(newFilePath.length() - 3) == ".txt")) {
+			        				 newExtFile = new File(newFilePath+".txt");
+			        			  }
+			        			  System.out.println("" + newExtFile);
+				        		  newExtFile.createNewFile();
+				      			  FileOutputStream fileOut = new FileOutputStream(newExtFile);
+				      			  BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
+				      		      double progress = 0;
+				      		      progressBar.setValue((int) (progress));
+				      		      progressBar.setStringPainted(true);
+				      		      //write first line
+				      		      bw.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \r\n");
+				      		      for (int i=0;i<extlines.size();i++) {
+				      		    	  bw.write(extlines.get(i) + "\r\n");
+				      		      }
+				      		        
+				      		      bw.close();
+				      		      fileOut.close();
+			      			} catch (IOException e1) {
+			      				  JOptionPane.showMessageDialog(null, "Could not create the extract file, maybe you have no writing permissions?" , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+			      				  e1.printStackTrace();
+			      			}
+			        		  // save to file
+			        		}
+			        	}
+				        
+				        String actFilename = (String) JOptionPane.showInputDialog(null,"Filename (*.act):",
+		                        "Creating ACT File in " +ini.lvl2,
+		                        JOptionPane.PLAIN_MESSAGE, null, null, "activity.act");
+						if(actFilename == null || (actFilename != null && ("".equals(actFilename)))) {
+							    return;
+						}
+						String points = (String) JOptionPane.showInputDialog(null,"Choose 1-5:",
+		                        "Number of points for derivative calculation",
+		                        JOptionPane.PLAIN_MESSAGE, null, null, "1");
+						
+						if(points == null || (points != null && ("".equals(points)))) {
+							    return;
+						}
+						try {
+							if( Integer.parseInt(points)>5 || Integer.parseInt(points) < 0 || points==null) {
+								JOptionPane.showMessageDialog(null, "No value between 1 and 5 selected, set to default=1"/*, JOptionPane.INFORMATION_MESSAGE*/);
+								points="1";
+							}
+						} catch (Exception e3) {
+							JOptionPane.showMessageDialog(null, "No value between 1 and 5 selected, set to default=1"/*, JOptionPane.INFORMATION_MESSAGE*/);
+							points="1";
+						}
+						      
+				        //creating act file
+						FileOutputStream fileOut;
+						File actFile = new File(ini.lvl2 + "\\" + actFilename);
+						System.out.println("saving activity file at " + actFile.getPath());
+						
+						ArrayList<String> actlines = new ArrayList<String>();
+						if(extlines.size()<2) {
+				        	JOptionPane.showMessageDialog(null, "Extract file is empty or has no values."/*, JOptionPane.INFORMATION_MESSAGE*/);
+				        	return;
+					    }
+						
+				        //open act File
+						fileOut = new FileOutputStream(actFile);
+				    	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
+				        bw.write("222-Radon activities calculated with " + SoftwareVersion + "\r\n"+ "\r\n");
+				        bw.write("Evaluated by: " + evaluator + " on "); 
+				        bw.write(java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))); 
+				        bw.write("\r\n");
+				        bw.write("Used parameters \r\n");
+				        String Method="Stockburger";
+				        bw.write("Method	    : " + Method + "\r\n");
+				        bw.write("Source Files : ");
+				        for (int k = 0; k<extFiles.length;k++) {
+				        	bw.write(extFiles[k].getPath()+"; ");
+				        }
+				        bw.write("\r\n");
+				        bw.write("Solid Angle : " + String.valueOf(ini.solidangle) + "\r\n");
+				        bw.write("Disequil.   : " + String.valueOf(ini.disequilibrium) + "\r\n");
+				        bw.write("Flux Offset : " + String.valueOf(ini.fluxoffset) + "\r\n");
+				        bw.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
+				        bw.write("Format: \r\n");
+				        bw.write("Stoptime,Activity [Bq/m3], Ac[dps],Ac/dt,Total, Window, Edge, temp1[C], temp2[C], temp3[C], Pressure[mbar], LifeTime[sec], Flux[m3/s], ID \r\n");
+				      
+				        //split extlines to get rid of duplicates or  missing values
+				        ArrayList<ArrayList<String>> splittedExtlines = new ArrayList<ArrayList<String>>();
+				        ArrayList<ArrayList<String>> splittedActlines = new ArrayList<ArrayList<String>>();
+				        ArrayList<String> tmpList = new ArrayList<String>();
+		
+				        //save positions where to split
+				        // 0-> dont split; 1-> split; 2-> delete 
+				        int[] flag = new int[extlines.size()];
+				        flag[1] = 0;
+				        tmpList.add(extlines.get(1));
+				        int j = 0;
+				        
+				        for (int i = 2; i< extlines.size(); i++) {
+				        	
+				        	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
+				        	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
+				        	if((actual - last) > 1800000 ) {
+				        		//if (Datetime_last - Datetime_current) > 1800s
+				        		flag[i] = 1; //split here
+				        		System.out.println("split " + (actual - last));
+				        		splittedExtlines.add((ArrayList<String>) tmpList.clone());
+				        		tmpList.clear();
+				        		j++;
+				        		tmpList.add(extlines.get(i));
+				        		System.out.println("new Array of extLines " + extlines.get(i));
+				        	}
+					        	else if((actual - last) < 60000 ) {
+					        		//if (Datetime_last - Datetime_current) < 600s
+					        		flag[i] = 2; //remove this
+					        		System.out.println("remove " + (actual - last));
+					        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
+					        		continue;
+					        	}
+					        	else {
+					        		flag[i] = 0;
+						        	tmpList.add(extlines.get(i));
+					        		System.out.println("add " + extlines.get(i));
+					        	}		        	
+				        }
+				        
+				        splittedExtlines.add((ArrayList<String>) tmpList.clone());
+		        		tmpList.clear();
+		
+		
+				        //values calculation using the Stockburger method			        
+				        System.out.println("Calculating Stockburger");
+				        for(int x = 0; x < splittedExtlines.size(); x++) {	
+				        	tmpList = (ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone();
+				        	if (tmpList.get(0) == "") {
+				        		continue;
+				        	}
+				        	splittedActlines.add(tmpList);
+				        	}
+				        
+				        //gather and fuse, if fill == true
+						//should the values be filled up?
+				        Boolean fill = false;
+				        if(ini.fill == 1) fill = true;
+				        if(!fill || splittedActlines.size() == 1) {
+				        	System.out.println("Don't need to fill up");
+				        	//just write the results into the file if no filler is given or only one block was created
+					        for(int i=0; i<splittedActlines.size(); i++) {
+					        	for(int j1 = 0; j1 < splittedActlines.get(i).size() ; j1++) {
+					        		bw.write(splittedActlines.get(i).get(j1) + "\r\n");
+					        	}
+					        }
+				        } else {
+				        	//write the results into the file but every time a new block starts, fill it with the correct date and the filler
+				        	System.out.println("Fill Up with " + ini.filler);
+				        	for(int i = 0; i < splittedActlines.size() ; i++) {
+				        		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
+					        		System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
+				        			bw.write(splittedActlines.get(i).get(k) + "\r\n");
+				        		}
+				        		try {
+				        			//taking last line form the current peace and first line from the next piece
+				        			//calculate time difference and number of entries to fill
+				        			String last = splittedActlines.get(i).get(splittedActlines.get(i).size()-1);
+				        			String next = splittedActlines.get(i+1).get(0);
+				        			ArrayList<String> fillingStrings = getDateTimeBetween(last, next);
+				        			for (int l = 0; l < fillingStrings.size(); l++) {
+				        				bw.write(fillingStrings.get(l)+ ";" + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + "\r\n");
+				        			}
+				        		} catch (Exception e2) {
+				        			//could not access splittedActlines.get(i+1) -> filling done
+				        			break;
+				        		}
+				        	}
+				        }
+				        bw.close();
+				        JOptionPane.showMessageDialog(null, "Successfully created " + actFile.getPath() , "Make Activity File from multiple sources", JOptionPane.INFORMATION_MESSAGE);
+			        } else if (option == JFileChooser.CANCEL_OPTION){
+			        	System.out.println("User cancelled operation. No ACT file was created.");
+			        	return;
+			        }
+				} catch (Exception e3) {
+					e3.printStackTrace();
+				}
+				
 			}
 		});
 		
@@ -1345,8 +1607,8 @@ public class RnLog extends JFrame {
 		double[] dt_deriv = new double[points*2+1];
 		
 		ArrayList<String> actlines = new ArrayList<String>();
-		if(extLines.size()<3) {
-			System.out.println("Extractfile had only 2 lines.");
+		if(extLines.size()<4) {
+			System.out.println("Extractfile had less than 4 lines.");
 			actlines.add("");
 			return actlines;
 		}
@@ -1946,52 +2208,53 @@ public class RnLog extends JFrame {
         ArrayList<ArrayList<String>> splittedActlines = new ArrayList<ArrayList<String>>();
         ArrayList<String> tmpList = new ArrayList<String>();
 
-        //save positions where to split
+      //save positions where to split
         // 0-> dont split; 1-> split; 2-> delete 
         int[] flag = new int[extlines.size()];
         flag[1] = 0;
+        tmpList.add(extlines.get(1));
+        int j = 0;
         DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
         
         for (int i = 2; i< extlines.size(); i++) {
-        	flag[i] = 0;
+        	
         	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
         	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
         	if((actual - last) > 1800000 ) {
         		//if (Datetime_last - Datetime_current) > 1800s
         		flag[i] = 1; //split here
         		System.out.println("split " + (actual - last));
-        	}
-        	if((actual - last) < 60000 ) {
-        		//if (Datetime_last - Datetime_current) > 1800s
-        		flag[i] = 2; //remove this
-        		System.out.println("remove " + (actual - last));
-        	}
-        }
-        int j = 0;
-        for (int i = 1; i< extlines.size(); i++) {
-        	if (flag[i] == 0) {
-        		tmpList.add(extlines.get(i));
-        		//System.out.println("add to extract file: " + extlines.get(i));
-        	}
-        	if ( flag[i] == 1) {
         		splittedExtlines.add((ArrayList<String>) tmpList.clone());
         		tmpList.clear();
         		j++;
         		tmpList.add(extlines.get(i));
         		System.out.println("new Array of extLines " + extlines.get(i));
         	}
-        	if ( flag[i] == 2) {
-        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
-        		continue;
-        	}
+	        	else if((actual - last) < 60000 ) {
+	        		//if (Datetime_last - Datetime_current) < 600s
+	        		flag[i] = 2; //remove this
+	        		System.out.println("remove " + (actual - last));
+	        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
+	        		continue;
+	        	}
+	        	else {
+	        		flag[i] = 0;
+		        	tmpList.add(extlines.get(i));
+	        		System.out.println("add " + extlines.get(i));
+	        	}		        	
         }
+        
         splittedExtlines.add((ArrayList<String>) tmpList.clone());
 		tmpList.clear();
 		
         //berechnung der Werte mit Stockburger
         System.out.println("Calculating Stockburger");
-        for(int x = 0; x < splittedExtlines.size(); x++) {	        	
-        	splittedActlines.add((ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone());
+        for(int x = 0; x < splittedExtlines.size(); x++) {	 
+        	tmpList = (ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone();
+        	if (tmpList.get(0) == "") {
+        		continue;
+        	}
+        	splittedActlines.add(tmpList);
         }
         
         //gather and fuse, if fill == true
@@ -2003,8 +2266,9 @@ public class RnLog extends JFrame {
         	System.out.println("splittedActlines.size() is " + splittedActlines.size());
         	//just write the results into the file if no filler is given or only one block was created
 	        for(int i=0; i<splittedActlines.size(); i++) {
-	        	for(int j1 = 0; j1 < splittedActlines.get(i).size() ; j1++) {
-	        		bw.write(splittedActlines.get(i).get(j1) + "\r\n");
+	        	for(int k = 0; k < splittedActlines.get(i).size() ; k++) {
+	        		System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
+	        		bw.write(splittedActlines.get(i).get(k) + "\r\n");
 	        	}
 	        }
         } else {
@@ -2013,7 +2277,6 @@ public class RnLog extends JFrame {
         	System.out.println("splittedActlines.size() is " + splittedActlines.size());
         	for(int i = 0; i < splittedActlines.size() ; i++) {
         		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
-        			//TODO: stürzt ab wenn vorher nur 2 extlines da waren -> ="" und findet kein date time
         			System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
         			bw.write(splittedActlines.get(i).get(k) + "\r\n");
         		}
