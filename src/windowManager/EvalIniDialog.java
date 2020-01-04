@@ -73,7 +73,7 @@ public class EvalIniDialog extends JDialog {
 	 */
 	public EvalIniDialog(iniFile ini) {
 		
-		setBounds(100, 100, 819, 377);
+		setBounds(100, 100, 819, 408);
 		getContentPane().setLayout(new BorderLayout());
 		contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
 		getContentPane().add(contentPanel, BorderLayout.CENTER);
@@ -243,7 +243,7 @@ public class EvalIniDialog extends JDialog {
 		JPopupMenu popupMenu = new JPopupMenu();
 		addPopup(tfFluxchannel, popupMenu);
 		
-		JLabel lblFillMissingValues = new JLabel("Fill missing values in activity file ?");
+		JLabel lblFillMissingValues = new JLabel("Fill missing values in activity file?");
 		lblFillMissingValues.setBounds(249, 139, 171, 14);
 		contentPanel.add(lblFillMissingValues);
 		
@@ -264,18 +264,18 @@ public class EvalIniDialog extends JDialog {
 		contentPanel.add(tfFiller);
 		
 		JLabel lblUsedIniFile = new JLabel("used ini file:");
-		lblUsedIniFile.setBounds(10, 184, 75, 14);
+		lblUsedIniFile.setBounds(10, 198, 75, 14);
 		contentPanel.add(lblUsedIniFile);
 		
 		tfIniFilePath = new JLabel();
-		tfIniFilePath.setBounds(10, 200, 368, 20);
+		tfIniFilePath.setBounds(95, 195, 368, 20);
 		contentPanel.add(tfIniFilePath);
 		if (ini._pathToIniFile == null) {tfIniFilePath.setText("no ini file was found or it cannot be loaded");
 		} else {tfIniFilePath.setText(""+ini._pathToIniFile);			
 		}
 		
 		JButton btnBrowse = new JButton("Browse");
-		btnBrowse.setBounds(538, 197, 89, 23);
+		btnBrowse.setBounds(473, 194, 89, 23);
 		contentPanel.add(btnBrowse);
 				
 		btnBrowse.addActionListener(new ActionListener() {
@@ -329,34 +329,32 @@ public class EvalIniDialog extends JDialog {
 			}
 		});
 		
-		JLabel lblRawDataFolder = new JLabel("Folder with raw data:");
-		lblRawDataFolder.setBounds(10, 223, 127, 14);
+		JLabel lblRawDataFolder = new JLabel("Folder with raw data (lvl0):");
+		lblRawDataFolder.setBounds(10, 223, 171, 16);
 		contentPanel.add(lblRawDataFolder);
 		
-		JLabel lblRawDataPath = new JLabel();
-		lblRawDataPath.setBounds(10, 237, 368, 14);
-		contentPanel.add(lblRawDataPath);
-		lblRawDataPath.setText(""+ini.lvl0);			
+		JTextField tfRawDataPath = new JTextField();
+		tfRawDataPath.setBounds(10, 240, 368, 16);
+		tfRawDataPath.setText(ini.lvl0);
+		contentPanel.add(tfRawDataPath);	
 		
-		JLabel lblBrowsedDataFolder = new JLabel("Folder with browsed data:");
-		lblBrowsedDataFolder.setBounds(10, 251, 152, 14);
-		contentPanel.add(lblBrowsedDataFolder);
+		JLabel lblAutomaticDataFolder = new JLabel("Folder with automatically browsed data (lvl1):");
+		lblAutomaticDataFolder.setBounds(10, 257, 301, 16);
+		contentPanel.add(lblAutomaticDataFolder);	
 		
-		JLabel lblBrowsedDataPath = new JLabel();
-		lblBrowsedDataPath.setBounds(10, 265, 352, 14);
-		contentPanel.add(lblBrowsedDataPath);
-		lblBrowsedDataPath.setText(""+ini.lvl2);
-		/*
-		JLabel lblBrowsedDataFolder = new JLabel("Folder with browsed data:");
-		lblRawDataFolder.setBounds(10, 251, 113, 14);
-		contentPanel.add(lblBrowsedDataFolder);
+		JTextField tfAtomaticDataPath = new JTextField();
+		tfAtomaticDataPath.setBounds(10, 274, 368, 16);
+		tfAtomaticDataPath.setText(ini.lvl1);
+		contentPanel.add(tfAtomaticDataPath);
 		
-		JLabel lblBrowsedDataPath = new JLabel();
-		lblRawDataPath.setBounds(10, 265, 219, 14);
-		contentPanel.add(lblBrowsedDataPath);
-		lblRawDataPath.setText(""+ini.lvl2);
-		*/
+		JLabel lblBrowsedDataFolder = new JLabel("Folder with manually browsed data (lvl2):");
+		lblBrowsedDataFolder.setBounds(10, 292, 301, 16);
+		contentPanel.add(lblBrowsedDataFolder);	
 		
+		JTextField tfBrowsedDataPath = new JTextField();
+		tfBrowsedDataPath.setBounds(10, 308, 368, 16);
+		tfBrowsedDataPath.setText(ini.lvl2);
+		contentPanel.add(tfBrowsedDataPath);
 		
 		{
 			JPanel buttonPane = new JPanel();
@@ -369,7 +367,8 @@ public class EvalIniDialog extends JDialog {
 						//Save Evaluation Settings and close Dialog
 						try {
 							ini.overwriteIniFile(ini._pathToIniFile, tfMonitorID, tfNoiseThreshold, tfWindowThreshold, tfLowerFitThreshold, tfUpperFitThreshold, tfLowerFlagThreshold, 
-									tfUpperFlagThreshold, tfFluxslope, tfFluxoffset, tfSolidangle, tfDisequilibriumfactor, tfHoentzsch, tfInterval, tfEdgeoffset, tfIPAdress, tfFluxchannel, tfFiller, chckbxfillup
+									tfUpperFlagThreshold, tfFluxslope, tfFluxoffset, tfSolidangle, tfDisequilibriumfactor, tfHoentzsch, tfInterval, tfEdgeoffset, tfIPAdress, tfFluxchannel, tfFiller, chckbxfillup,
+									tfRawDataPath,tfAtomaticDataPath,tfBrowsedDataPath
 									);
 							dispose();
 						} catch (Exception e1) {
