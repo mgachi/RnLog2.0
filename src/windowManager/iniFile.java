@@ -200,7 +200,7 @@ public class iniFile {
 	
 	public void overwriteIniFile(File file, JTextField tfMonitorID, JTextField tfNoiseThreshold, JTextField tfWindowThreshold, JTextField tfLowerFitThreshold, JTextField tfUpperFitThreshold, JTextField tfLowerFlagThreshold, 
 			JTextField tfUpperFlagThreshold, JTextField tfFluxslope, JTextField tfFluxoffset, JTextField tfSolidangle, JTextField tfDisequilibriumfactor, JTextField tfHoentzsch, JTextField tfInterval, JTextField tfEdgeoffset, JTextField tfIPAdress, 
-			JTextField tfFluxchannel, JTextField tfFiller, JCheckBox chckbxfillup) throws Exception, IOException {
+			JTextField tfFluxchannel, JTextField tfFiller, JCheckBox chckbxfillup, JTextField tfRawDataPath, JTextField tfAtomaticDataPath, JTextField tfBrowsedDataPath) throws Exception, IOException {
 		if (_pathToIniFile==null) {
 			//no file -> crerate new one
 			System.out.println("no ini file found -> saving new one");
@@ -312,6 +312,19 @@ public class iniFile {
 					this.fill = 0;
 					findAndReplace(file, "fill", "0");
 				}
+				if (!( this.lvl0.equals( tfRawDataPath.getText() ))) {
+					this.lvl0 = tfRawDataPath.getText();
+					findAndReplace(file, "lvl0", tfRawDataPath.getText());
+				}
+				if (!( this.lvl1.equals( tfAtomaticDataPath.getText() ))) {
+					this.lvl1 = tfAtomaticDataPath.getText();
+					findAndReplace(file, "lvl1", tfAtomaticDataPath.getText());
+				}
+				if (!( this.lvl2.equals( tfBrowsedDataPath.getText() ))) {
+					this.lvl2 = tfBrowsedDataPath.getText();
+					findAndReplace(file, "lvl2", tfBrowsedDataPath.getText());
+				}
+				
 			} catch (Exception wrongInput) {
 				JOptionPane.showMessageDialog(null, "File NOT saved. The value entered has the wrong type."/*, JOptionPane.INFORMATION_MESSAGE*/);
 			}

@@ -1424,6 +1424,14 @@ public class RnLog extends JFrame {
 		});
 		
 		//create a continue button for the "continue evaluation" process
+		JButton btnContinueRefSpectrum = new JButton("continue evaluation");
+		btnContinueRefSpectrum.setBackground(new Color(50, 205, 50));
+		btnContinueRefSpectrum.setToolTipText("click here to continue the automatic evaluation after setting the edge for the reference spectrum");
+		btnContinueRefSpectrum.setBounds(10, 435, 145, 44);
+		panel.add(btnContinueRefSpectrum);
+		btnContinueRefSpectrum.setVisible(false);
+		
+		//create a continue button for the "continue evaluation" process
 		JButton btnContinueFlagging = new JButton("continue evaluation");
 		btnContinueFlagging.setBackground(new Color(50, 205, 50));
 		btnContinueFlagging.setToolTipText("click here to continue the automatic evaluation after setting the edge for the flagged spectra");
@@ -1434,7 +1442,7 @@ public class RnLog extends JFrame {
 		//continue evaluation
 		mntmNewMenuItem_7.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				continueEvaluation(progressBar, chartPanel, panel, btnContinueFlagging);			
+				continueEvaluation(progressBar, chartPanel, panel, btnContinueFlagging, btnContinueRefSpectrum);			
 			}
 		});
 		
@@ -1453,6 +1461,14 @@ public class RnLog extends JFrame {
 				*/
 			}
 		});
+		
+		//trying to pause the continue method til user have selected edge for the ref spectrum
+				btnContinueRefSpectrum.addActionListener(new ActionListener() {
+					public void actionPerformed(ActionEvent arg0) {
+						btnContinueRefSpectrum.setVisible(false);
+						continueEvaluation(progressBar, chartPanel, panel, btnContinueFlagging, btnContinueRefSpectrum);
+					}
+				});
 		
 		//get the live data from the monitor
 		tglbtnLive.addActionListener(new ActionListener() {
@@ -1777,7 +1793,7 @@ public class RnLog extends JFrame {
 	//this needed to be splitted into two functions, the first one gets the new spectra, copies them
 	//and tries to set the edge, afterwards, if there are flagged spectra, the user can to flag them manually
 	//which will then start part2 of the evaluation
-	public void continueEvaluation(JProgressBar progressBar, ChartPanel chartPanel, JPanel panel, JButton btnContinue) {
+	public void continueEvaluation(JProgressBar progressBar, ChartPanel chartPanel, JPanel panel, JButton btnContinue, JButton btnWaitRefSpectrum) {
 		//Search where the last evaluation ended and start a new one
 		//expects lvl0, lvl2 and lvl1 directories
 		if (ini._pathToIniFile == null) {
@@ -1847,9 +1863,45 @@ public class RnLog extends JFrame {
 		if (RefSpec == null) {
 			//no reference spectrum found
 			JOptionPane.showMessageDialog(null, "No reference spectrum found. Please create one first." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-			progressBar.setString("");
-			progressBar.setValue(0);
-			return;
+			
+			//askong if user want to create one automatically from the raw data
+			int dialogButton = JOptionPane.YES_NO_OPTION;
+        	int dialogResult = JOptionPane.showConfirmDialog (null, "Would you like to create a new reference spectrum from the raw data (lvl0 directory)?" ,"No reference spectrum was found!", dialogButton);
+        	if(dialogResult == JOptionPane.YES_OPTION){
+        		File rawDataDirectory= new File("user submits directory");
+        			
+    			spectraList.clear();
+    			//select spectra
+    			for(int i=0; i< rawFiles.size(); i++) {
+    				try {
+    					spectraList.add(new Spectra(rawFiles.get(i).getName(), rawFiles.get(i)));
+    				} catch (Exception e) {
+    					System.out.print(rawFiles.get(i).getName() + " is broken");
+    					e.printStackTrace();
+    				}
+    			}   
+    			
+    			System.out.println("spectra chosen");
+				try {
+					RefSpec = new Spectra(spectraList);
+					spectraList.clear();
+					spectraList.add(RefSpec);
+					tfEdge.setText(RefSpec.showSpectra(chartPanel));
+					btnWaitRefSpectrum.setVisible(true);
+					return;
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					JOptionPane.showMessageDialog(null, "Could not create temporary reference specterum. Maybe you have no writing permissions?", "Create Reference Spectrum", JOptionPane.INFORMATION_MESSAGE);
+					e1.printStackTrace();
+				}
+				
+				
+				
+        	} else {
+        		progressBar.setString("");
+    			progressBar.setValue(0);
+    			return;
+        	}
 		}
 		
 		//compare the two lists, create a new list which contains the new spectra from lvl0 that need to be evaluated
@@ -2037,6 +2089,7 @@ public class RnLog extends JFrame {
 	        		progressBar.setValue(0);
 	        		progressBar.setString("");
 	        		continueEvaluation2(btnContinue);
+	        		return;
 	        	} else {
 	        		//user wants to flag spectra himself
 	        		btnContinue.setVisible(true);
@@ -2074,8 +2127,6 @@ public class RnLog extends JFrame {
 				
 				spectraList = (ArrayList<Spectra>) tmpList.clone();
 				tmpList.clear();
-				flaggedIdx.clear();
-				flagged.clear();
 			}
 			
 			//spectraList needs to be reversed in order
@@ -2208,7 +2259,7 @@ public class RnLog extends JFrame {
         ArrayList<ArrayList<String>> splittedActlines = new ArrayList<ArrayList<String>>();
         ArrayList<String> tmpList = new ArrayList<String>();
 
-      //save positions where to split
+        //save positions where to split
         // 0-> dont split; 1-> split; 2-> delete 
         int[] flag = new int[extlines.size()];
         flag[1] = 0;
@@ -2301,6 +2352,10 @@ public class RnLog extends JFrame {
     	JOptionPane.showMessageDialog(null, "Successfully created " + activity.getName() , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
     	progressBar.setString("");
     	progressBar.setValue(0);
+    	
+    	//clear the flagged arrays for the next iteration
+		flaggedIdx.clear();
+		flagged.clear();
     	
 	} catch (Exception e3) {
     	progressBar.setString("");
