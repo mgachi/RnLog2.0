@@ -58,10 +58,12 @@ public class iniFile {
 	//0=false
 	public int fill=0;
 	public String filler = "NaN";
-	//added for continue evaluation button
+	//added default values for continue evaluation button
 	public String lvl0 = "./lvl0/";
 	public String lvl1 = "./lvl1/";
 	public String lvl2 = "./lvl2/";
+	public String extractFileFolder = lvl2;
+	public String activityFileFolder = lvl2;
 	
 	//constructor without arguments if no file was found
 	public iniFile () {
@@ -83,11 +85,10 @@ public class iniFile {
 	
 	public iniFile(File selectedIniFile) {
 		
-		String fileExtention = selectedIniFile.getName().substring(selectedIniFile.getName().length() - 3);
-		
-   		if(fileExtention == "ini") {
+   		if(selectedIniFile.getName().endsWith(".ini")) {
    			System.out.println("You have selected this ini file:\n" +selectedIniFile);
-   			} else {System.out.println("You have to selected ini file!");
+   			} else {
+		        JOptionPane.showMessageDialog(null, "You have to selected ini file (.ini)!", "Error loading ini file", JOptionPane.ERROR_MESSAGE);
    			return;
    			}
    		try {
@@ -97,8 +98,6 @@ public class iniFile {
 			System.out.println("Could not open " + selectedIniFile + ". Maybe it has been deleted?");
 			e.printStackTrace();
 		}
-		
-		
 	}
 	
 	
@@ -117,8 +116,8 @@ public class iniFile {
 		//IMPORTANTIMPORTANTIMPORTANTIMPORTANTIMPORTANTIMPORTANT
 		////////////////////////////////////////////////////////
 		//Add .getParentFile() for exporting, otherwise .jar does not find the ini
-		File[] fList = file.listFiles();
-		//File[] fList = file.getParentFile().listFiles();
+		//File[] fList = file.listFiles();
+		File[] fList = file.getParentFile().listFiles();
 		
 		for (int i = 0; i< fList.length; i++) {
 			if(fList[i].getName().endsWith(".ini")) {
@@ -153,6 +152,10 @@ public class iniFile {
         bufferedReader.close();
         
         this._pathToIniFile = file;
+        
+        //markers for the presence of folder paths
+        boolean isExtFolderPresent = false;
+        boolean isActFolderPresent = false;
         
         //save values in this class
         for (int i=0; i<lines.size(); i++) {
@@ -193,148 +196,96 @@ public class iniFile {
         		case "lvl0": lvl0 = lines.get(i).trim().split("=")[1];break;
         		case "lvl1": lvl1 = lines.get(i).trim().split("=")[1];break;
         		case "lvl2": lvl2 = lines.get(i).trim().split("=")[1];break;
+        		case "extractFileFolder": {extractFileFolder = lines.get(i).trim().split("=")[1];
+        								   isExtFolderPresent =true;break;
+        		}
+        		case "activityFileFolder": {activityFileFolder = lines.get(i).trim().split("=")[1];
+        									isActFolderPresent= true; break;
+        		}
         		default: break;
         	}
+        }
+        //by default if no path for the extract and activity file is given it should be saved in the lvl2 directory
+        if (!isExtFolderPresent) {
+        	extractFileFolder = lvl2;
+        }
+        if (!isActFolderPresent) {
+        	activityFileFolder = lvl2;
         }
 	}
 	
 	public void overwriteIniFile(File file, JTextField tfMonitorID, JTextField tfNoiseThreshold, JTextField tfWindowThreshold, JTextField tfLowerFitThreshold, JTextField tfUpperFitThreshold, JTextField tfLowerFlagThreshold, 
 			JTextField tfUpperFlagThreshold, JTextField tfFluxslope, JTextField tfFluxoffset, JTextField tfSolidangle, JTextField tfDisequilibriumfactor, JTextField tfHoentzsch, JTextField tfInterval, JTextField tfEdgeoffset, JTextField tfIPAdress, 
-			JTextField tfFluxchannel, JTextField tfFiller, JCheckBox chckbxfillup, JTextField tfRawDataPath, JTextField tfAtomaticDataPath, JTextField tfBrowsedDataPath) throws Exception, IOException {
-		if (_pathToIniFile==null) {
-			//no file -> crerate new one
-			System.out.println("no ini file found -> saving new one");
-			try {
-				createNewFile();
-			} catch (Exception e) {
-				JOptionPane.showMessageDialog(null, "No .ini File found and could not create a new one. Maybe you have no writing permission?"/*, JOptionPane.INFORMATION_MESSAGE*/);
-				return;
-			}
-			
-		} else {
+			JTextField tfFluxchannel, JTextField tfFiller, JCheckBox chckbxfillup, JTextField tfRawDataPath, JTextField tfAtomaticDataPath, JTextField tfBrowsedDataPath, JTextField tfextractFileFolder, JTextField tfactivityFileFolder) throws Exception, IOException {
+		
 
-			System.out.println("overwriting existing ini file");
+			
 			//go through every value of the window and check if its the same as in the ini file
 			try {
-				if (!(this.id.equals(tfMonitorID.getText()))) {
-					this.id = tfMonitorID.getText();
-					findAndReplace(file, "id", tfMonitorID.getText());
-				}
-				if (!( Integer.toString(this.thres1).equals( tfNoiseThreshold.getText() ))) {
-					this.thres1 = Integer.parseInt(tfNoiseThreshold.getText());
-					findAndReplace(file, "thres1", tfNoiseThreshold.getText());
-				}
-				if (!( Integer.toString(this.thres2).equals( tfWindowThreshold.getText() ))) {
-					this.thres2 = Integer.parseInt(tfWindowThreshold.getText());
-					findAndReplace(file, "thres2", tfWindowThreshold.getText());
-				}
-				if (!( Integer.toString(this.thres3).equals( tfLowerFitThreshold.getText() ))) {
-					this.thres3 = Integer.parseInt(tfLowerFitThreshold.getText());
-					findAndReplace(file, "thres3", tfLowerFitThreshold.getText());
-				}
-				if (!( Integer.toString(this.thres4).equals( tfUpperFitThreshold.getText() ))) {
-					this.thres4 = Integer.parseInt(tfUpperFitThreshold.getText());
-					findAndReplace(file, "thres4", tfUpperFitThreshold.getText());
-				}
-				/*
-				if (!( Integer.toString(this.thres5).equals( tfLowerFlagThreshold.getText() ))) {
-					this.thres5 = Integer.parseInt(tfLowerFlagThreshold.getText());
-					findAndReplace(file, "thres5", tfLowerFlagThreshold.getText());
-				}
-				if (!( Integer.toString(this.thres6).equals( tfUpperFlagThreshold.getText() ))) {
-					this.thres6 = Integer.parseInt(tfUpperFlagThreshold.getText());
-					findAndReplace(file, "thres6", tfUpperFlagThreshold.getText());
-				}*/
-				if (!( Integer.toString(this.LowerFlagThres).equals( tfLowerFlagThreshold.getText() ))) {
-					this.LowerFlagThres = Integer.parseInt(tfLowerFlagThreshold.getText());
-					findAndReplace(file, "LowerFlagThres", tfLowerFlagThreshold.getText());
-				}
-				if (!( Integer.toString(this.UpperFlagThres).equals( tfUpperFlagThreshold.getText() ))) {
-					this.UpperFlagThres = Integer.parseInt(tfUpperFlagThreshold.getText());
-					findAndReplace(file, "UpperFlagThres", tfUpperFlagThreshold.getText());
-				}
-				/* not used in the old radon program ?
-				if (!( Integer.toString(this.thres7).equals( tfFluxslope.getText() ))) {
-					this.thres7 = Integer.parseInt(tfFluxslope.getText());
-					findAndReplace(file, "thres7", tfFluxslope.getText());
-				}
-				if (!( Integer.toString(this.thres8).equals( tfFluxoffset.getText() ))) {
-					this.thres8 = Integer.parseInt(tfFluxoffset.getText());
-					findAndReplace(file, "thres8", tfFluxoffset.getText());
-				}
-				*/
 				
-				if (!( Double.toString(this.fluxslope).equals( tfFluxslope.getText() ))) {
-					this.fluxslope = Double.parseDouble(tfFluxslope.getText());
-					findAndReplace(file, "fluxslope", tfFluxslope.getText());
-				}
-				if (!( Double.toString(this.fluxoffset).equals( tfFluxoffset.getText() ))) {
-					this.fluxoffset = Double.parseDouble(tfFluxoffset.getText());
-					findAndReplace(file, "fluxoffset", tfFluxoffset.getText());
-				} 
-				if (!( Double.toString(this.solidangle).equals( tfSolidangle.getText() ))) {
-					this.solidangle = Double.parseDouble(tfSolidangle.getText());
-					findAndReplace(file, "solidangle", tfSolidangle.getText());
-				}
-				if (!( Double.toString(this.disequilibrium).equals( tfDisequilibriumfactor.getText() ))) {
-					this.disequilibrium = Double.parseDouble(tfDisequilibriumfactor.getText());
-					findAndReplace(file, "disequilibrium", tfDisequilibriumfactor.getText());
-				} 
-				if (!( Integer.toString(this.Hoen).equals( tfHoentzsch.getText() ))) {
-					this.Hoen = Integer.parseInt(tfHoentzsch.getText());
-					findAndReplace(file, "Hoen", tfHoentzsch.getText());
-				}
-				if (!( Integer.toString(this.invl).equals( tfInterval.getText() ))) {
-					this.invl = Integer.parseInt(tfInterval.getText());
-					findAndReplace(file, "invl", tfInterval.getText());
-				}
-				if (!( Integer.toString(this.Edgeoffset).equals( tfEdgeoffset.getText() ))) {
-					this.Edgeoffset = Integer.parseInt(tfEdgeoffset.getText());
-					findAndReplace(file, "Edgeoffset", tfEdgeoffset.getText());
-				}
-				if (!( this.IP.equals( tfIPAdress.getText() ))) {
-					this.IP = tfIPAdress.getText();
-					findAndReplace(file, "IP", tfIPAdress.getText());
-				}
-				if (!( Integer.toString(this.Fluxchannel).equals( tfFluxchannel.getText() ))) {
-					this.Fluxchannel = Integer.parseInt(tfFluxchannel.getText());
-					findAndReplace(file, "Fluxchannel", tfFluxchannel.getText());
-				}
-				if (!( this.filler.equals( tfFiller.getText() ))) {
-					this.filler = tfFiller.getText();
-					findAndReplace(file, "filler", tfFiller.getText());
-				}
-				if ( this.fill ==0 && chckbxfillup.isSelected() ) {
+				this.id = tfMonitorID.getText();
+				this.thres1 = Integer.parseInt(tfNoiseThreshold.getText());
+				this.thres2 = Integer.parseInt(tfWindowThreshold.getText());
+				this.thres3 = Integer.parseInt(tfLowerFitThreshold.getText());
+				this.thres4 = Integer.parseInt(tfUpperFitThreshold.getText());
+				this.LowerFlagThres = Integer.parseInt(tfLowerFlagThreshold.getText());
+				this.UpperFlagThres = Integer.parseInt(tfUpperFlagThreshold.getText());
+				
+			    /* not used in the old radon program ?
+			    this.thres5 = Integer.parseInt(tfLowerFlagThreshold.getText());
+				this.thres6 = Integer.parseInt(tfUpperFlagThreshold.getText());
+				this.thres7 = Integer.parseInt(tfFluxslope.getText());
+				this.thres8 = Integer.parseInt(tfFluxoffset.getText());
+			    */
+			
+				this.fluxslope = Double.parseDouble(tfFluxslope.getText());
+				this.fluxoffset = Double.parseDouble(tfFluxoffset.getText());
+				this.solidangle = Double.parseDouble(tfSolidangle.getText());
+				this.disequilibrium = Double.parseDouble(tfDisequilibriumfactor.getText());
+				this.Hoen = Integer.parseInt(tfHoentzsch.getText());
+				this.invl = Integer.parseInt(tfInterval.getText());
+				this.Edgeoffset = Integer.parseInt(tfEdgeoffset.getText());
+				this.IP = tfIPAdress.getText();
+				this.Fluxchannel = Integer.parseInt(tfFluxchannel.getText());
+				this.filler = tfFiller.getText();
+			
+				if (chckbxfillup.isSelected()) {
 					this.fill = 1;
-					findAndReplace(file, "fill", "1");
-				}
-				if ( this.fill ==1 && !chckbxfillup.isSelected() ) {
+				} else {
 					this.fill = 0;
-					findAndReplace(file, "fill", "0");
 				}
-				if (!( this.lvl0.equals( tfRawDataPath.getText() ))) {
-					this.lvl0 = tfRawDataPath.getText();
-					findAndReplace(file, "lvl0", tfRawDataPath.getText());
-				}
-				if (!( this.lvl1.equals( tfAtomaticDataPath.getText() ))) {
-					this.lvl1 = tfAtomaticDataPath.getText();
-					findAndReplace(file, "lvl1", tfAtomaticDataPath.getText());
-				}
-				if (!( this.lvl2.equals( tfBrowsedDataPath.getText() ))) {
-					this.lvl2 = tfBrowsedDataPath.getText();
-					findAndReplace(file, "lvl2", tfBrowsedDataPath.getText());
-				}
+				this.lvl0 = tfRawDataPath.getText();
+				this.lvl1 = tfAtomaticDataPath.getText();
+				this.lvl2 = tfBrowsedDataPath.getText();
+				this.extractFileFolder = tfextractFileFolder.getText();
+				this.activityFileFolder = tfactivityFileFolder.getText();
 				
 			} catch (Exception wrongInput) {
+				wrongInput.printStackTrace();
 				JOptionPane.showMessageDialog(null, "File NOT saved. The value entered has the wrong type."/*, JOptionPane.INFORMATION_MESSAGE*/);
 			}
 			
-		}
+			if (_pathToIniFile==null) {
+				//no file -> create new one
+				System.out.println("no ini file found -> saving new one in the folder with RnLog*.*.jar");
+				try {
+					//creating new ini file in the current directory
+					_pathToIniFile = new File("RnLog.ini");
+					createNewFile(_pathToIniFile);
+				} catch (Exception e) {
+					JOptionPane.showMessageDialog(null, "Could not create a new one. Maybe you have no writing permission?"/*, JOptionPane.INFORMATION_MESSAGE*/);
+					e.printStackTrace();
+					return;
+				}
+				
+			} else {
+				System.out.println("overwriting existing ini file");
+				createNewFile(_pathToIniFile);
+			}
 	}
-	
+	/*
 	private void findAndReplace(File file, String variable, String newValue) throws IOException {
 		boolean found = false;
-		System.out.println(variable + " changed to " + newValue);
 		//finds a variable, e.g. disequilibriumfactor, in the ini file and replaces it with a new value
 		//type checking must be done before
 		if(file==null) {
@@ -354,9 +305,10 @@ public class iniFile {
         		lines.add(line);
                 continue;
         	}
-        	if(line.split("=")[0].equals(variable)) {
+        	if(line.replace(" ", "").split("=")[0].equals(variable)) {
         		//found searched line
         		lines.add(variable + "=" + newValue);
+        		System.out.println(variable + " changed to " + newValue);
         		found = true;
         		continue;
         	}
@@ -370,23 +322,26 @@ public class iniFile {
     		bw.write(lines.get(i)  + "\r\n");
     		System.out.println(lines.get(i)  + "\r\n");
     	}
-    	if(!found) bw.write(variable + "=" + newValue);
+    	if(!found) {
+    		bw.write(variable + "=" + newValue);    		
+    		System.out.println(variable + " saved to ini file as " + newValue);
+    	}
     	bw.close();
 	}
-        
-	private void createNewFile () throws Exception {
+     */   
+	private void createNewFile (File pathToIniFile) throws Exception {
 		//create a new ini file out of standard values
 		File newIni = null;
 		try {
-			newIni = new File(RnLog.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-		} catch (URISyntaxException e) {
+			newIni = pathToIniFile;
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		//if(newIni.getAbsolutePath()==null) {
 		//	throw new Exception();
 		//}
-        FileOutputStream fileOut = new FileOutputStream(newIni.getAbsolutePath()+"\\RnLog.ini");
+        FileOutputStream fileOut = new FileOutputStream(pathToIniFile);
     	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
         bw.write("port=" + port + "\r\n");
         bw.write("thres1=" + thres1 + "\r\n");
@@ -416,6 +371,13 @@ public class iniFile {
         bw.write("Fluxchannel=" + Fluxchannel + "\r\n");
         bw.write("LowerFlagThres=" + LowerFlagThres + "\r\n");
         bw.write("UpperFlagThres=" + UpperFlagThres + "\r\n");
+        bw.write("fill=" + fill + "\r\n");
+        bw.write("filler=" + filler + "\r\n");
+        bw.write("lvl0=" + lvl0 + "\r\n");
+        bw.write("lvl1=" + lvl1 + "\r\n");
+        bw.write("lvl2=" + lvl2 + "\r\n");
+        bw.write("extractFileFolder=" + extractFileFolder + "\r\n");
+        bw.write("activityFileFolder=" + activityFileFolder + "\r\n");
         bw.close();
         fileOut.close();
         this._pathToIniFile = newIni.getAbsoluteFile();
