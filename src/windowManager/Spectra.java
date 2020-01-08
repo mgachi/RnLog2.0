@@ -642,6 +642,7 @@ public class Spectra {
 		int sum = 0;
 		for(int i=1; i<128; i++) {
 			//(((x)%128)+128)%128 necessary because java does not use the modulu but the remainer, which means it produced negative numbers (out of bounds exception)
+			//System.out.println(this.values[i]+ " " + (((i+shift)%128)+128)%128);
 			sum += this.values[i]*other.values[(((i+shift)%128)+128)%128];
 		}
 		return sum;

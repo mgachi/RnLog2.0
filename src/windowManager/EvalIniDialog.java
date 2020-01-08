@@ -73,7 +73,7 @@ public class EvalIniDialog extends JDialog {
 	 */
 	public EvalIniDialog(iniFile ini) {
 		
-		setBounds(100, 100, 819, 408);
+		setBounds(100, 100, 819, 477);
 		getContentPane().setLayout(new BorderLayout());
 		contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
 		getContentPane().add(contentPanel, BorderLayout.CENTER);
@@ -268,14 +268,14 @@ public class EvalIniDialog extends JDialog {
 		contentPanel.add(lblUsedIniFile);
 		
 		tfIniFilePath = new JLabel();
-		tfIniFilePath.setBounds(95, 195, 368, 20);
+		tfIniFilePath.setBounds(79, 195, 368, 20);
 		contentPanel.add(tfIniFilePath);
 		if (ini._pathToIniFile == null) {tfIniFilePath.setText("no ini file was found or it cannot be loaded");
 		} else {tfIniFilePath.setText(""+ini._pathToIniFile);			
 		}
 		
 		JButton btnBrowse = new JButton("Browse");
-		btnBrowse.setBounds(473, 194, 89, 23);
+		btnBrowse.setBounds(456, 194, 89, 23);
 		contentPanel.add(btnBrowse);
 				
 		btnBrowse.addActionListener(new ActionListener() {
@@ -284,6 +284,8 @@ public class EvalIniDialog extends JDialog {
 				//Create a file chooser
 		        final JFileChooser fileDialog = new JFileChooser();
 		        
+		        //name of the filechooser window
+		        fileDialog.setDialogTitle("Choose ini file (.ini):");
 		        //only show not hidden files
 		        fileDialog.setFileHidingEnabled(true);
 		        
@@ -291,7 +293,7 @@ public class EvalIniDialog extends JDialog {
 		        //fileDialog.setCurrentDirectory(System.getProperty("user.dir"));
 		        
 		       
-		        //to select mulitple files
+		        //to select single file
 		        fileDialog.setMultiSelectionEnabled(false);
 		        //In response to a button click:
 		        int option = fileDialog.showOpenDialog(null);
@@ -305,12 +307,10 @@ public class EvalIniDialog extends JDialog {
 	               		//passing file to the ini method
 	               		try {
 	               			ini.loadIniFile(file); //= new iniFile(file);
-	               			System.out.println(""+ini._pathToIniFile);
 	               			dispose();
 	               			EvalIniDialog dialog = new EvalIniDialog(ini);
 	               			dialog.setVisible(true);
 	               			System.out.println("Trying to refresh the window");
-	               			System.out.println(""+ini._pathToIniFile);
 	               			
 	               		} catch (Exception e) {// somewhere here is an error, I don't know where
 	               			// TODO Auto-generated catch block
@@ -356,6 +356,24 @@ public class EvalIniDialog extends JDialog {
 		tfBrowsedDataPath.setText(ini.lvl2);
 		contentPanel.add(tfBrowsedDataPath);
 		
+		JLabel lblextractFileFolder = new JLabel("Folder to save extract (.txt) file:");
+		lblextractFileFolder.setBounds(10, 327, 301, 16);
+		contentPanel.add(lblextractFileFolder);	
+		
+		JTextField tfextractFileFolder = new JTextField();
+		tfextractFileFolder.setBounds(10, 342, 368, 16);
+		tfextractFileFolder.setText(ini.extractFileFolder);
+		contentPanel.add(tfextractFileFolder);
+
+		JLabel lblactivityFileFolder = new JLabel("Folder to save activity (.act) file:");
+		lblactivityFileFolder.setBounds(10, 362, 301, 16);
+		contentPanel.add(lblactivityFileFolder);	
+		
+		JTextField tfactivityFileFolder = new JTextField();
+		tfactivityFileFolder.setBounds(10, 376, 368, 16);
+		tfactivityFileFolder.setText(ini.activityFileFolder);
+		contentPanel.add(tfactivityFileFolder);
+		
 		{
 			JPanel buttonPane = new JPanel();
 			buttonPane.setLayout(new FlowLayout(FlowLayout.RIGHT));
@@ -368,7 +386,7 @@ public class EvalIniDialog extends JDialog {
 						try {
 							ini.overwriteIniFile(ini._pathToIniFile, tfMonitorID, tfNoiseThreshold, tfWindowThreshold, tfLowerFitThreshold, tfUpperFitThreshold, tfLowerFlagThreshold, 
 									tfUpperFlagThreshold, tfFluxslope, tfFluxoffset, tfSolidangle, tfDisequilibriumfactor, tfHoentzsch, tfInterval, tfEdgeoffset, tfIPAdress, tfFluxchannel, tfFiller, chckbxfillup,
-									tfRawDataPath,tfAtomaticDataPath,tfBrowsedDataPath
+									tfRawDataPath, tfAtomaticDataPath, tfBrowsedDataPath, tfextractFileFolder, tfactivityFileFolder
 									);
 							dispose();
 						} catch (Exception e1) {

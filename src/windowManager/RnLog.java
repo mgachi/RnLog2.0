@@ -761,7 +761,6 @@ public class RnLog extends JFrame {
 		btnReadMemoryCard.setBounds(789, 276, 140, 23);
 		panel.add(btnReadMemoryCard);
 		
-		//TODO: change edge/spektrum with keys
         class MyDispatcher implements KeyEventDispatcher {
 			@Override
 		    public boolean dispatchKeyEvent(KeyEvent e) {
@@ -870,16 +869,7 @@ public class RnLog extends JFrame {
 		//Extract Spectra
 		mntmNewMenuItem_1.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				//PopUp to enter Name of *.ext file
-				//Select Spectra to extract
-				String extFilename = (String) JOptionPane.showInputDialog(null,"Enter a filename (*.txt):",
-                        "Creating Logfile",
-                        JOptionPane.PLAIN_MESSAGE, null, null, "extract.txt");
-				//if no filename was given or canceled:
-				if(extFilename == null || (extFilename != null && ("".equals(extFilename))))   {
-				    return;
-				}
-				System.out.println(extFilename);
+				
 				spectraList.clear();
 				//select spectra
 				chooseSpectraDialog(chartPanel);
@@ -887,88 +877,145 @@ public class RnLog extends JFrame {
 					//user cancelled operation
 					return;
 				}
-				//extract spectra from spectra list and write it into extFile
-				File extFile = null;
-				System.out.println(spectraList.get(0).path.getParent() + "\\" + extFilename);
-				extFile = new File(spectraList.get(0).path.getParent() + "\\" + extFilename);
-				FileOutputStream fileOut;
-				try {
-					fileOut = new FileOutputStream(extFile);
-			    	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
-			    	double progress = 0;
-			    	progressBar.setValue((int) (progress));
-			    	progressBar.setStringPainted(true);
-			    	//write first line
-			        bw.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \r\n");
-			        //loop though the selected spectra, see if they need to be flagged
-			        int[] flaggedIdx = new int[spectraList.size()];
-			        for(int i=0; i<spectraList.size(); i++) {
-			        	//set edge of spectrum according to reference (if no edge is set yet)
-			        	spectraList.get(i).calcEdge(RefSpec, ini.thres3, ini.thres4, ini.Edgeoffset);
-			        	progress = (((double) i+1.0)/(spectraList.size())*100.0);
-			        	System.out.println( (progress));
-			        	progressBar.setValue((int) (progress));
-			        	//flag spectra
-			        	if(spectraList.get(i).edge > ini.Edgeoffset+ini.UpperFlagThres || spectraList.get(i).edge < ini.Edgeoffset-ini.LowerFlagThres) {
-			        		//save Spectrum in new subfolder \flagged
-			        		File tmpFlagged = new File( spectraList.get(i).path.getParent()+ "\\flagged\\" + spectraList.get(i).name);
-			        		copyFile(spectraList.get(i).path, tmpFlagged);
-			        		flaggedIdx[i]=1;
-			        		System.out.println("copied " + spectraList.get(i).path.getPath() + " to " + tmpFlagged.getPath() );
-			        		continue;
-			        	}
-			        	//TODO: berechnung der slopes und RNs
-			        	bw.write(spectraList.get(i).datetime + "; " +
-			        	spectraList.get(i).LT + "; " +
-			        	spectraList.get(i).ADC1 + "; "+
-			        	spectraList.get(i).ADC1StD + "; "+
-			        	spectraList.get(i).T1 + "; "+
-			        	spectraList.get(i).T1StD + "; "+
-			        	spectraList.get(i).T2 + "; "+
-			        	spectraList.get(i).T2StD + "; "+
-			        	spectraList.get(i).T3 + "; "+
-			        	spectraList.get(i).T3StD + "; "+
-			        	//RN1 in the old Delphi program, counts above the noise threshold (TotalThreshold)
-			        	spectraList.get(i).integrate(ini.thres1, 128) + "; "+			
-			        	//RN2 in the old Delphi, counts inside threshold window (between TotalThres and WindowThreshold)
-			        	spectraList.get(i).integrate(ini.thres1, ini.thres2) + "; "+		
-			        	//RN3 in the old Delphi, counts above the edge
-			        	spectraList.get(i).integrate(spectraList.get(i).edge, 128)+ "; "+		
-			        	//RN4 in the old Delphi
-			        	spectraList.get(i).edge + "; "+		
-			        	spectraList.get(i).ADC2 + "; "+
-			        	spectraList.get(i).ADC2StD + "; "+
-			        	spectraList.get(i).ADC3 + "; "+
-			        	spectraList.get(i).ADC3StD + "; "+
-			        	spectraList.get(i).counter1 + "; "+
-			        	spectraList.get(i).counter2 + "; "+
-			        	spectraList.get(i).fluxslope+ "; "+
-			        	spectraList.get(i).fluxoffset+ "; "+
-			        	spectraList.get(i).ADC2Slope+ "; "+
-			        	spectraList.get(i).ADC2Offset+ "; "+
-			        	spectraList.get(i).ADC3Slope+ "; "+
-			        	spectraList.get(i).ADC3Offset+ "; "+
-			        	spectraList.get(i).Temp1Slope+ "; "+
-			        	spectraList.get(i).Temp1Offset+ "; "+
-			        	spectraList.get(i).Temp2Slope+ "; "+
-			        	spectraList.get(i).Temp2Offset+ "; "+
-			        	spectraList.get(i).Temp3Slope+ "; "+
-			        	spectraList.get(i).Temp3Offset+ "; "+
-			        	spectraList.get(i).Counter1Slope+ "; "+
-			        	spectraList.get(i).Counter1Offset+ "; "+
-			        	spectraList.get(i).Counter2Slope+ "; "+
-			        	spectraList.get(i).Counter2Offset+ "; "+
-			        	spectraList.get(i).monitor+ "; \r\n"
-			        	);
+				
+				int dialogButton = JOptionPane.YES_NO_OPTION;
+	        	int dialogResult = JOptionPane.showConfirmDialog (null, "To continue you have to provide a reference spectrum (.ref). Would you like to load one?" ,"Load reference spectrum", dialogButton);
+	        	if(dialogResult == JOptionPane.YES_OPTION){
+			    	//Create a file chooser
+			        JFileChooser fileDialog = new JFileChooser(ini.lvl0);
+			        
+			        //name of the file chooser window
+			        fileDialog.setDialogTitle("Choose reference spectrum (.ref)");
+			        //only show not hidden files
+			        fileDialog.setFileHidingEnabled(true);			       
+			        //to select single file
+			        fileDialog.setMultiSelectionEnabled(false);
+			        //In response to a button click:
+			        int option = fileDialog.showOpenDialog(null);
+			        
+			        //defined globally
+			        if(option == JFileChooser.APPROVE_OPTION) {
+			        	int i = fileDialog.getSelectedFile().getName().lastIndexOf('.');
+	        			if (!(fileDialog.getSelectedFile().getName().endsWith(".ref"))) {
+			        		System.out.print(fileDialog.getSelectedFile().getName().substring(i+1));
+		      				JOptionPane.showMessageDialog(null, "Provided file is not a reference file (.ref)!" , "Load reference spectrum", JOptionPane.ERROR_MESSAGE);
+			        		return;
+	        			}
+			        	
+			            try {
+			            	System.out.println("load ref spec and u did it!!1");
+							RefSpec = new Spectra(fileDialog.getSelectedFile().getName(),fileDialog.getSelectedFile());
+						} catch (Exception e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}
+			            
+			            
 			        }
-			        bw.close();
-			        fileOut.close();
-				} catch (FileNotFoundException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				} catch (IOException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
+			    	
+			    } else {
+			    	return;
+			    }
+				
+				JFileChooser fileChooser = new JFileChooser(ini.extractFileFolder); 
+				//name of the file chooser window
+				fileChooser.setDialogTitle("Save Log file (.txt) as:");
+        		if (fileChooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
+        			File extFile = fileChooser.getSelectedFile();
+        			try {
+	        			if (!(extFile.getName().endsWith(".txt"))) {
+	        				extFile = new File(extFile+".txt");
+	        			}
+      				} catch (Exception e1) {
+      				  JOptionPane.showMessageDialog(null, "Could not create the extract file, maybe you have no writing permissions?" , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+      				  e1.printStackTrace();
+      				}
+					//extract spectra from spectra list and write it into extFile
+					FileOutputStream fileOut;
+					try {
+						fileOut = new FileOutputStream(extFile);
+				    	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
+				    	double progress = 0;
+				    	progressBar.setValue((int) (progress));
+				    	progressBar.setStringPainted(true);
+				    	//write first line
+				        bw.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \r\n");
+				        //loop though the selected spectra, see if they need to be flagged
+				        int[] flaggedIdx = new int[spectraList.size()];
+				        for(int i=0; i<spectraList.size(); i++) {
+				        	//set edge of spectrum according to reference (if no edge is set yet)
+				        	spectraList.get(i).calcEdge(RefSpec, ini.thres3, ini.thres4, ini.Edgeoffset);
+				        	progress = (((double) i+1.0)/(spectraList.size())*100.0);
+				        	System.out.println( (progress));
+				        	progressBar.setValue((int) (progress));
+				        	//flag spectra
+				        	if(spectraList.get(i).edge > ini.Edgeoffset+ini.UpperFlagThres || spectraList.get(i).edge < ini.Edgeoffset-ini.LowerFlagThres) {
+				        		//save Spectrum in new subfolder \flagged
+				        		new File(spectraList.get(i).path.getParent()+ "\\flagged").mkdirs();
+				        		File tmpFlagged = new File( spectraList.get(i).path.getParent()+ "\\flagged\\" + spectraList.get(i).name);
+				        		copyFile(spectraList.get(i).path, tmpFlagged);
+				        		flaggedIdx[i]=1;
+				        		System.out.println("copied " + spectraList.get(i).path.getPath() + " to " + tmpFlagged.getPath() );
+				        		continue;
+				        	}
+				        	//TODO: berechnung der slopes und RNs
+				        	bw.write(spectraList.get(i).datetime + "; " +
+				        	spectraList.get(i).LT + "; " +
+				        	spectraList.get(i).ADC1 + "; "+
+				        	spectraList.get(i).ADC1StD + "; "+
+				        	spectraList.get(i).T1 + "; "+
+				        	spectraList.get(i).T1StD + "; "+
+				        	spectraList.get(i).T2 + "; "+
+				        	spectraList.get(i).T2StD + "; "+
+				        	spectraList.get(i).T3 + "; "+
+				        	spectraList.get(i).T3StD + "; "+
+				        	//RN1 in the old Delphi program, counts above the noise threshold (TotalThreshold)
+				        	spectraList.get(i).integrate(ini.thres1, 128) + "; "+			
+				        	//RN2 in the old Delphi, counts inside threshold window (between TotalThres and WindowThreshold)
+				        	spectraList.get(i).integrate(ini.thres1, ini.thres2) + "; "+		
+				        	//RN3 in the old Delphi, counts above the edge
+				        	spectraList.get(i).integrate(spectraList.get(i).edge, 128)+ "; "+		
+				        	//RN4 in the old Delphi
+				        	spectraList.get(i).edge + "; "+		
+				        	spectraList.get(i).ADC2 + "; "+
+				        	spectraList.get(i).ADC2StD + "; "+
+				        	spectraList.get(i).ADC3 + "; "+
+				        	spectraList.get(i).ADC3StD + "; "+
+				        	spectraList.get(i).counter1 + "; "+
+				        	spectraList.get(i).counter2 + "; "+
+				        	spectraList.get(i).fluxslope+ "; "+
+				        	spectraList.get(i).fluxoffset+ "; "+
+				        	spectraList.get(i).ADC2Slope+ "; "+
+				        	spectraList.get(i).ADC2Offset+ "; "+
+				        	spectraList.get(i).ADC3Slope+ "; "+
+				        	spectraList.get(i).ADC3Offset+ "; "+
+				        	spectraList.get(i).Temp1Slope+ "; "+
+				        	spectraList.get(i).Temp1Offset+ "; "+
+				        	spectraList.get(i).Temp2Slope+ "; "+
+				        	spectraList.get(i).Temp2Offset+ "; "+
+				        	spectraList.get(i).Temp3Slope+ "; "+
+				        	spectraList.get(i).Temp3Offset+ "; "+
+				        	spectraList.get(i).Counter1Slope+ "; "+
+				        	spectraList.get(i).Counter1Offset+ "; "+
+				        	spectraList.get(i).Counter2Slope+ "; "+
+				        	spectraList.get(i).Counter2Offset+ "; "+
+				        	spectraList.get(i).monitor+ "; \r\n"
+				        	);
+				        }
+				        bw.close();
+				        fileOut.close();
+				        progressBar.setString("");
+				    	progressBar.setValue(0);
+					} catch (FileNotFoundException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					} catch (IOException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
+				} else {
+					//user canceled operation
+					return;				
 				}
 			}
 
@@ -987,8 +1034,10 @@ public class RnLog extends JFrame {
 				System.out.println("Evaluator: " + evaluator);
 				//select extract file
 				//Create a file chooser
-		        final JFileChooser actDialog = new JFileChooser();
+		        final JFileChooser actDialog = new JFileChooser(ini.extractFileFolder);
 		        
+		        //name of the file chooser window
+		        actDialog.setDialogTitle("Load Log file (.txt):");
 		        //only show not hidden files
 		        actDialog.setFileHidingEnabled(true);
 		        //to select single file
@@ -1177,8 +1226,10 @@ public class RnLog extends JFrame {
 					System.out.println("Evaluator: " + evaluator);
 					//select extract file
 					//Create a file chooser
-			        final JFileChooser actDialog = new JFileChooser();
+			        final JFileChooser actDialog = new JFileChooser(ini.extractFileFolder);
 			        
+			        //name of the file chooser window
+			        actDialog.setDialogTitle("Load Log file(-s) (.txt):");
 			        //only show not hidden files
 			        actDialog.setFileHidingEnabled(true);
 			        //to select multiple files
@@ -1233,44 +1284,55 @@ public class RnLog extends JFrame {
 				        int dialogButton = JOptionPane.YES_NO_OPTION;
 			        	int dialogResult = JOptionPane.showConfirmDialog (null, "Would you like to save combined and sorted Log file?" ,"Save new Log file?", dialogButton);
 			        	if(dialogResult == JOptionPane.YES_OPTION){
-			        		JFileChooser fileChooser = new JFileChooser();
+			        		JFileChooser fileChooser = new JFileChooser(ini.extractFileFolder);
+			        		//name of the file chooser window
+			        		fileChooser.setDialogTitle("Save combined Log file (.txt) as:");
 			        		
 			        		if (fileChooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
-			        		  File newExtFile = fileChooser.getSelectedFile();
-			        		  try {
-			        			  String newFilePath = newExtFile.getPath();
-			        			  if (!(newFilePath.substring(newFilePath.length() - 3) == ".txt")) {
-			        				 newExtFile = new File(newFilePath+".txt");
-			        			  }
-			        			  System.out.println("" + newExtFile);
-				        		  newExtFile.createNewFile();
-				      			  FileOutputStream fileOut = new FileOutputStream(newExtFile);
-				      			  BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
-				      		      double progress = 0;
-				      		      progressBar.setValue((int) (progress));
-				      		      progressBar.setStringPainted(true);
-				      		      //write first line
-				      		      bw.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \r\n");
-				      		      for (int i=0;i<extlines.size();i++) {
-				      		    	  bw.write(extlines.get(i) + "\r\n");
-				      		      }
-				      		        
-				      		      bw.close();
-				      		      fileOut.close();
-			      			} catch (IOException e1) {
+			        			File newExtFile = fileChooser.getSelectedFile();
+			        			try {
+				        			if (!(newExtFile.getName().endsWith(".txt"))) {
+				        				newExtFile = new File(newExtFile+".txt");
+				        			}
+				        			System.out.println("" + newExtFile);
+					        		newExtFile.createNewFile();
+					      			FileOutputStream fileOut = new FileOutputStream(newExtFile);
+					      			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
+					      		    double progress = 0;
+					      		    progressBar.setValue((int) (progress));
+					      		    progressBar.setStringPainted(true);
+					      		    //write first line
+					      		    bw.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \r\n");
+					      		    for (int j=0;j<extlines.size();j++) {
+					      		    	bw.write(extlines.get(j) + "\r\n");
+					      		    }
+					      		        
+					      		    bw.close();
+					      		    fileOut.close();
+			      				} catch (IOException e1) {
 			      				  JOptionPane.showMessageDialog(null, "Could not create the extract file, maybe you have no writing permissions?" , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
 			      				  e1.printStackTrace();
-			      			}
+			      				}
 			        		  // save to file
 			        		}
 			        	}
 				        
-				        String actFilename = (String) JOptionPane.showInputDialog(null,"Filename (*.act):",
-		                        "Creating ACT File in " +ini.lvl2,
-		                        JOptionPane.PLAIN_MESSAGE, null, null, "activity.act");
-						if(actFilename == null || (actFilename != null && ("".equals(actFilename)))) {
-							    return;
-						}
+			        	JFileChooser fileChooser = new JFileChooser(ini.activityFileFolder);
+		        		//name of the file chooser window
+		        		fileChooser.setDialogTitle("Save activity file (.act) as:");
+		        		
+		        		//creating act file
+						FileOutputStream fileOut;
+		        		File actFile = null;
+		        		if (fileChooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
+		        			actFile = fileChooser.getSelectedFile();
+		        			if (!(actFile.getName().endsWith(".act"))) {
+		        				actFile = new File(actFile+".act");
+		        			}
+		        		} else {
+		        			return;
+		        		}
+		        		
 						String points = (String) JOptionPane.showInputDialog(null,"Choose 1-5:",
 		                        "Number of points for derivative calculation",
 		                        JOptionPane.PLAIN_MESSAGE, null, null, "1");
@@ -1288,12 +1350,7 @@ public class RnLog extends JFrame {
 							points="1";
 						}
 						      
-				        //creating act file
-						FileOutputStream fileOut;
-						File actFile = new File(ini.lvl2 + "\\" + actFilename);
-						System.out.println("saving activity file at " + actFile.getPath());
-						
-						ArrayList<String> actlines = new ArrayList<String>();
+				        //checking if act file can be created
 						if(extlines.size()<2) {
 				        	JOptionPane.showMessageDialog(null, "Extract file is empty or has no values."/*, JOptionPane.INFORMATION_MESSAGE*/);
 				        	return;
@@ -1411,7 +1468,7 @@ public class RnLog extends JFrame {
 				        	}
 				        }
 				        bw.close();
-				        JOptionPane.showMessageDialog(null, "Successfully created " + actFile.getPath() , "Make Activity File from multiple sources", JOptionPane.INFORMATION_MESSAGE);
+				        JOptionPane.showMessageDialog(null, "Activity file was successfully created!" , "Make Activity File from multiple sources", JOptionPane.INFORMATION_MESSAGE);
 			        } else if (option == JFileChooser.CANCEL_OPTION){
 			        	System.out.println("User cancelled operation. No ACT file was created.");
 			        	return;
@@ -1525,10 +1582,13 @@ public class RnLog extends JFrame {
 	
 	public void chooseSpectraDialog(ChartPanel chartPanel) {
 		//Create a file chooser
-        final JFileChooser fileDialog = new JFileChooser();
+        final JFileChooser fileDialog = new JFileChooser(ini.lvl0);
         
         //only show not hidden files
         fileDialog.setFileHidingEnabled(true);
+        
+        //name of the filechooser window
+        fileDialog.setDialogTitle("Choose Spectra");
         
         //TODO: home directory als start ausw#hlen
         //fileDialog.setCurrentDirectory(System.getProperty("user.dir"));
@@ -1799,21 +1859,46 @@ public class RnLog extends JFrame {
 		if (ini._pathToIniFile == null) {
 			iniFile ini = new iniFile();
 			} 
+		
+		//removing ref spectrum data from the previous runs
+		RefSpec = null;
 		System.out.println("setting the progress bar");
 		progressBar.setStringPainted(true);
 		progressBar.setString("gathering spectra from lvl0 and lvl2");
 		progressBar.setValue(0);
 		String lvl0=  ini.lvl0; //"C:\\Users\\Alessandro\\eclipse-workspace\\AutoRnLog\\lvl0\\";
-		String lvl1=  ini.lvl1; //"C:\\Users\\Alessandro\\eclipse-workspace\\AutoRnLog\\lvl1\\";
-		String lvl2=  ini.lvl2; //"C:\\Users\\Alessandro\\eclipse-workspace\\AutoRnLog\\lvl1\\";
+		String lvl1=  ini.lvl1; 
+		String lvl2=  ini.lvl2; 
 		//compare the files from lvl0 and lvl2, if a file is not in lvl2 but its after the last file in lvl0 -> continue evaluation
 		//otherwise return, because there is no new file to evaluate
 		File lvl0Dir = new File(lvl0);
 		File lvl2Dir = new File(lvl2);
 		ArrayList<File> rawFiles = new ArrayList<File>();// = lvl0Dir.listFiles();
 		ArrayList<File> evFiles = new ArrayList<File>();// = lvl2Dir.listFiles();
-		System.out.println(lvl0Dir + " exists? " + lvl0Dir.exists());
-		System.out.println(lvl2Dir + " exists? " + lvl2Dir.exists());
+		
+
+		if (lvl0Dir.exists()) {
+			System.out.println(lvl0Dir + " exists");
+		} else {
+			JOptionPane.showMessageDialog(null, lvl0Dir + " does not exist. Please give the valid path to the raw data!", "Continue evaluation", JOptionPane.ERROR_MESSAGE);
+			progressBar.setString("");
+			progressBar.setValue(0);
+			return;
+		}
+		
+		if (lvl2Dir.exists()) {
+			System.out.println(lvl2Dir + " exists");
+		} else {
+			boolean folderCreated = lvl2Dir.mkdir();
+			if (folderCreated) {
+				System.out.println(lvl2Dir + " was successfully created");
+			} else {
+				JOptionPane.showMessageDialog(null, lvl2Dir + " cannot be created. Do you have writing permission?", "Continue evaluation", JOptionPane.ERROR_MESSAGE);
+				progressBar.setString("");
+				progressBar.setValue(0);
+				return;
+			}
+		}
 
 		try {
 			for (int i = 0; i < lvl0Dir.listFiles().length; i++) {
@@ -1828,7 +1913,7 @@ public class RnLog extends JFrame {
 						RefSpec = new Spectra(lvl0Dir.listFiles()[i].getName(), lvl0Dir.listFiles()[i]);
 					} catch (Exception e) {
 						System.out.println("could not load reference spectrum");
-						JOptionPane.showMessageDialog(null, "No reference spectrum found. Please create one first." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+						JOptionPane.showMessageDialog(null, "The reference spectrum found in the lvl0 directory is brocken. Please provide a valid one." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
 						progressBar.setString("");
 						progressBar.setValue(0);
 						e.printStackTrace();
@@ -1836,20 +1921,42 @@ public class RnLog extends JFrame {
 					}
 				}
 			}
+			
+			
 			for (int i = 0; i < lvl2Dir.listFiles().length; i++) {
 				//check if the file is a spectra
 				if (lvl2Dir.listFiles()[i].isFile() && checkFilename(lvl2Dir.listFiles()[i].getName())) {
 					evFiles.add(lvl2Dir.listFiles()[i]);
 				}
 				
-				//search for activity and extract file
-				if (lvl2Dir.listFiles()[i].isFile() && lvl2Dir.listFiles()[i].getName().endsWith(".txt")) {
-					extract = lvl2Dir.listFiles()[i];
-				}
-				if (lvl2Dir.listFiles()[i].isFile() && lvl2Dir.listFiles()[i].getName().endsWith(".act")) {
-					activity = lvl2Dir.listFiles()[i];
-				}
 			}
+			
+			//creating directories for the extract and activity files
+			new File(ini.extractFileFolder).mkdir();
+			new File(ini.activityFileFolder).mkdir();
+			
+			//name convention for extract and activity files
+			String prefixExtract = "extract";
+			String prefixActivity = "activity";
+			
+			//creating new activity and extract files
+			extract = new File(ini.extractFileFolder + "\\" + prefixExtract + ".txt");
+			activity = new File(ini.activityFileFolder + "\\" + prefixActivity + ".act");
+			
+			//checking if such files already exist
+			//cycle until free name is found
+			int i = 1;
+			while (extract.exists()) {
+				extract = new File(ini.extractFileFolder + "\\" + prefixExtract + "_" + i + ".txt");
+				i++;
+			}
+			
+			i = 1;
+			while (activity.exists()) {
+				activity = new File(ini.activityFileFolder + "\\" + prefixActivity + "_" + i + ".act");
+				i++;
+			}
+			
 		} catch (Exception e) {
 			//could not load the spectra
 			JOptionPane.showMessageDialog(null, "Could not read the spectra from lvl0 and lvl2 directories, please specify a correct path in the *.ini file." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
