@@ -761,12 +761,14 @@ public class RnLog extends JFrame {
 		btnReadMemoryCard.setBounds(789, 276, 140, 23);
 		panel.add(btnReadMemoryCard);
 		
-        class MyDispatcher implements KeyEventDispatcher {
+		//Creating option to switch between spectra and change edge with arrow keys
+		KeyEventDispatcher keyDispatcher = new KeyEventDispatcher() {
+
 			@Override
-		    public boolean dispatchKeyEvent(KeyEvent e) {
-				System.out.println(e.getKeyChar());
+			public boolean dispatchKeyEvent(KeyEvent e) {
 				if(spectraList.size() == 0) return false;
-				//down key was pressed
+				
+				//down key takes previous spectrum
 		        if(e.getKeyCode() == KeyEvent.VK_DOWN) {
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx - 1).showSpectra(chartPanel));
@@ -776,6 +778,8 @@ public class RnLog extends JFrame {
 						//no previous spectrum found -> out of bounds
 					}
 		         }
+		        
+		        //right key moves Po edge to the right
 		        if(e.getKeyCode() == KeyEvent.VK_RIGHT) {
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx).changeEdge(chartPanel, chart, true));
@@ -784,6 +788,8 @@ public class RnLog extends JFrame {
 						e1.printStackTrace();
 					}
 		        }
+		        
+		        //left key moves Po edge to the left
 		        if(e.getKeyCode() == KeyEvent.VK_LEFT) {
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx).changeEdge(chartPanel, chart, false));
@@ -792,6 +798,8 @@ public class RnLog extends JFrame {
 						e1.printStackTrace();
 					}
 		        }
+		        
+		        //up key moves to the next spectrum
 		        if(e.getKeyCode() == KeyEvent.VK_UP) {
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx + 1).showSpectra(chartPanel));
@@ -802,8 +810,9 @@ public class RnLog extends JFrame {
 					}
 		        }
 		        return true;
-		        }
-		 }
+			}
+		};
+		KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(keyDispatcher);
 		
 		JMenuItem mntmNewMenuItem_5 = new JMenuItem("Reset Spectra");
 		mntmNewMenuItem_5.addActionListener(new ActionListener() {
@@ -903,7 +912,7 @@ public class RnLog extends JFrame {
 	        			}
 			        	
 			            try {
-			            	System.out.println("load ref spec and u did it!!1");
+			            	//loading ref spectrum
 							RefSpec = new Spectra(fileDialog.getSelectedFile().getName(),fileDialog.getSelectedFile());
 						} catch (Exception e1) {
 							// TODO Auto-generated catch block
@@ -1084,6 +1093,8 @@ public class RnLog extends JFrame {
 			        ArrayList<String> extlines = new ArrayList<String>();
 			        ArrayList<String> actlines = new ArrayList<String>();
 			        String line = null;
+			        //Skipping first (header) line
+			        line = bufferedReader.readLine();
 			        while ((line = bufferedReader.readLine()) != null) {
 			            extlines.add(line);
 			        }
@@ -1123,11 +1134,11 @@ public class RnLog extends JFrame {
 			        // 0-> dont split; 1-> split; 2-> delete 
 			        int[] flag = new int[extlines.size()];
 			        flag[1] = 0;
-			        tmpList.add(extlines.get(1));
+			        tmpList.add(extlines.get(0));
 			        int j = 0;
 			        DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
 			        
-			        for (int i = 2; i< extlines.size(); i++) {
+			        for (int i = 1; i< extlines.size(); i++) {
 			        	
 			        	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
 			        	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
@@ -1250,6 +1261,7 @@ public class RnLog extends JFrame {
 			    				fileReader = new FileReader(extFiles[x]);
 			    		        BufferedReader bufferedReader = new BufferedReader(fileReader);	    		        
 			    		        String line = null;
+			    		        //skipping first (header) line
 			    		        line = bufferedReader.readLine();
 			    		        while ((line = bufferedReader.readLine()) != null) {
 			    		            extlines.add(line);
@@ -1590,9 +1602,6 @@ public class RnLog extends JFrame {
         //name of the filechooser window
         fileDialog.setDialogTitle("Choose Spectra");
         
-        //TODO: home directory als start ausw#hlen
-        //fileDialog.setCurrentDirectory(System.getProperty("user.dir"));
-        
         String filenames = "";
         //to select mulitple files
         fileDialog.setMultiSelectionEnabled(true);
@@ -1683,8 +1692,8 @@ public class RnLog extends JFrame {
 		double[] dt_deriv = new double[points*2+1];
 		
 		ArrayList<String> actlines = new ArrayList<String>();
-		if(extLines.size()<4) {
-			System.out.println("Extractfile had less than 4 lines.");
+		if(extLines.size()<3) {
+			System.out.println("Extractfile had less than 3 lines.");
 			actlines.add("");
 			return actlines;
 		}
@@ -1706,7 +1715,7 @@ public class RnLog extends JFrame {
 		}
 		
 		
-		for(int i = 1; i < extLines.size(); i++) {
+		for(int i = 0; i < extLines.size(); i++) {
     		//Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID
     		//get Date Time of String 04.07.2018 13:00:00
 			//save every intermediate value in its own list
@@ -1747,13 +1756,10 @@ public class RnLog extends JFrame {
 			act_ps[i] = ini.disequilibrium / (ini.solidangle * fluxs[i] * 4302);
 		}
 		
-		for( int i = 1; i < extLines.size(); i++) {
+		for( int i = points; i < extLines.size(); i++) {
 			//use intermediates to calculate the derivation (dAc/dt)
 			//kick the first #points out, because there are not enough values before to calculate the derivation
-			if((i - 1 - points) < 0) {
-				//not enough points to calculate derivation
-				continue;
-			}
+			
 			
 			//create lists for saving the points, x = time Difference; y = Ac
 			//and give them to LinearRegression(x[], y[])
@@ -1862,6 +1868,7 @@ public class RnLog extends JFrame {
 		
 		//removing ref spectrum data from the previous runs
 		RefSpec = null;
+		spectraList.clear();
 		System.out.println("setting the progress bar");
 		progressBar.setStringPainted(true);
 		progressBar.setString("gathering spectra from lvl0 and lvl2");
@@ -1875,6 +1882,7 @@ public class RnLog extends JFrame {
 		File lvl2Dir = new File(lvl2);
 		ArrayList<File> rawFiles = new ArrayList<File>();// = lvl0Dir.listFiles();
 		ArrayList<File> evFiles = new ArrayList<File>();// = lvl2Dir.listFiles();
+		//TODO: clear arrays
 		
 
 		if (lvl0Dir.exists()) {
@@ -1936,8 +1944,8 @@ public class RnLog extends JFrame {
 			new File(ini.activityFileFolder).mkdir();
 			
 			//name convention for extract and activity files
-			String prefixExtract = "extract";
-			String prefixActivity = "activity";
+			String prefixExtract = lvl0Dir.getName();
+			String prefixActivity = lvl0Dir.getName();
 			
 			//creating new activity and extract files
 			extract = new File(ini.extractFileFolder + "\\" + prefixExtract + ".txt");
@@ -2057,34 +2065,30 @@ public class RnLog extends JFrame {
 		}
 		progressBar.setString("extracting new spectra");
 		progressBar.setValue(0);
-	
+		rawFiles.clear();
+		evFiles.clear();
 		
 		//////////////////////////////////////////////////////
 		//extract these files and add it to the extract file
 		//////////////////////////////////////////////////////
 
-		if(extract == null) {
-			System.out.println("No extract file found, creating a new one at " + lvl2Dir.getPath()+"\\extract.txt");
-			File e = new File(lvl2Dir.getPath()+"\\extract.txt");
-			try {
-				e.createNewFile();
-				FileOutputStream fileOut = new FileOutputStream(e);
-				BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
-		    	double progress = 0;
-		    	progressBar.setValue((int) (progress));
-		    	progressBar.setStringPainted(true);
-		    	//write first line
-		        bw.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \r\n");
-		        bw.close();
-		        fileOut.close();
-		        extract = e;
-			} catch (IOException e1) {
-				JOptionPane.showMessageDialog(null, "Could not create the extract file, maybe you have no writing permissions?" , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-				e1.printStackTrace();
-				return;
-			}
+		//creating extract file header
+		FileOutputStream fileOutHeader;
+		try {
+			fileOutHeader = new FileOutputStream(extract);
+			BufferedWriter bwHeader = new BufferedWriter(new OutputStreamWriter(fileOutHeader));
+			
+	    	//write first line
+			bwHeader.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \r\n");
+			bwHeader.close();
+	        fileOutHeader.close();
+		} catch (IOException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
 		}
-
+		
+		
+		        
 		if (activity == null) {
 			System.out.println("No activity file found, creating a new one at " + lvl2Dir.getPath()+"\\activity.txt");
 			File a = new File(lvl2Dir.getPath()+"\\activity.act");
@@ -2126,10 +2130,10 @@ public class RnLog extends JFrame {
 				e.printStackTrace();
 			}
 		}
-		
+			
 		//extract spectra from spectra list and write it into extFile
 		File extFile = extract;
-		System.out.println(spectraList.get(0).path.getParent() + "\\" + extFilename);
+		System.out.println(extract);
 		FileOutputStream fileOut;
 		try {
 			fileOut = new FileOutputStream(extFile, true);
@@ -2145,7 +2149,7 @@ public class RnLog extends JFrame {
 	        	spectraList.get(i).showSpectra(chartPanel);
 	        	spectraList.get(i).calcEdge(RefSpec, ini.thres3, ini.thres4, ini.Edgeoffset);
 	        	spectraList.get(i).showSpectra(chartPanel);
-	        	progress = (((double) i+1.0)/(spectraList.size())*100.0);
+	        	progress =  (((double) i+1.0)/(spectraList.size())*100.0);
 	        	progressBar.setValue((int) (progress));
 	        	//flag spectra
 	        	if(spectraList.get(i).edge > ini.Edgeoffset+ini.UpperFlagThres || spectraList.get(i).edge < ini.Edgeoffset-ini.LowerFlagThres) {
@@ -2243,63 +2247,90 @@ public class RnLog extends JFrame {
 			spectraList = (ArrayList<Spectra>) tmpList.clone();
 			
 			//writing the extract file
-			fileOut = new FileOutputStream(extract, true);
+			
+			ArrayList<String> extlines = new ArrayList<String>();
+			for (int i=0; i<spectraList.size(); i++) {
+				extlines.add(spectraList.get(i).datetime + "; " +
+				        spectraList.get(i).LT + "; " +
+				        spectraList.get(i).ADC1 + "; "+
+				        spectraList.get(i).ADC1StD + "; "+
+				        spectraList.get(i).T1 + "; "+
+				        spectraList.get(i).T1StD + "; "+
+				        spectraList.get(i).T2 + "; "+
+				        spectraList.get(i).T2StD + "; "+
+				        spectraList.get(i).T3 + "; "+
+				        spectraList.get(i).T3StD + "; "+
+				       	//RN1 in the old Delphi program, counts above the noise threshold (TotalThreshold)
+				       	spectraList.get(i).integrate(ini.thres1, 128) + "; "+			
+				       	//RN2 in the old Delphi, counts inside threshold window (between TotalThres and WindowThreshold)
+				       	spectraList.get(i).integrate(ini.thres1, ini.thres2) + "; "+		
+				       	//RN3 in the old Delphi, counts above the edge
+			        	spectraList.get(i).integrate(spectraList.get(i).edge, 128)+ "; "+		
+				       	//RN4 in the old Delphi
+				       	spectraList.get(i).edge + "; "+		
+				       	spectraList.get(i).ADC2 + "; "+
+				       	spectraList.get(i).ADC2StD + "; "+
+				       	spectraList.get(i).ADC3 + "; "+
+			        	spectraList.get(i).ADC3StD + "; "+
+				       	spectraList.get(i).counter1 + "; "+
+				       	spectraList.get(i).counter2 + "; "+
+				       	spectraList.get(i).fluxslope+ "; "+
+				        spectraList.get(i).fluxoffset+ "; "+
+				        spectraList.get(i).ADC2Slope+ "; "+
+				        spectraList.get(i).ADC2Offset+ "; "+
+				        spectraList.get(i).ADC3Slope+ "; "+
+				        spectraList.get(i).ADC3Offset+ "; "+
+				        spectraList.get(i).Temp1Slope+ "; "+
+				        spectraList.get(i).Temp1Offset+ "; "+
+				        spectraList.get(i).Temp2Slope+ "; "+
+				        spectraList.get(i).Temp2Offset+ "; "+
+				        spectraList.get(i).Temp3Slope+ "; "+
+				        spectraList.get(i).Temp3Offset+ "; "+
+				        spectraList.get(i).Counter1Slope+ "; "+
+				        spectraList.get(i).Counter1Offset+ "; "+
+				        spectraList.get(i).Counter2Slope+ "; "+
+				        spectraList.get(i).Counter2Offset+ "; "+
+				        spectraList.get(i).monitor+ "; \r\n");
+				
+			}
+			
+			//sorting entries in the final extract file by the measurement time
+            DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
+            int minIndex;
+	        for (int i = 0; i<extlines.size()-1; i++) {
+	        	String minTimeExtLine = extlines.get(i);
+	        	minIndex = i;
+	        	for (int j = i+1; j< extlines.size(); j++) {
+		        	long currentMin;
+		        	long currentLine;
+					try {
+						currentMin = formatter.parse(minTimeExtLine.split(";")[0]).getTime();
+						currentLine =  formatter.parse(extlines.get(j).split(";")[0]).getTime();
+						if(currentMin > currentLine) {
+			        		minTimeExtLine = extlines.get(j);
+			        		minIndex = j;
+			        	}
+					} catch (ParseException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+		        	
+		        }
+	        	
+	        	//changing places of current i element with the minimum of the remaining
+	        	extlines.set(minIndex, extlines.get(i));
+	        	extlines.set(i, minTimeExtLine);
+
+	        }
+			
+		    fileOut = new FileOutputStream(extract, true);
 			//--------------------------------------^^^^ means append new line, don't override old data
-	    	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
-	        for (int i=0; i<spectraList.size(); i++) {
-		        bw.write(spectraList.get(i).datetime + "; " +
-			        spectraList.get(i).LT + "; " +
-			        spectraList.get(i).ADC1 + "; "+
-			        spectraList.get(i).ADC1StD + "; "+
-			        spectraList.get(i).T1 + "; "+
-			        spectraList.get(i).T1StD + "; "+
-			        spectraList.get(i).T2 + "; "+
-			        spectraList.get(i).T2StD + "; "+
-			        spectraList.get(i).T3 + "; "+
-			        spectraList.get(i).T3StD + "; "+
-			       	//RN1 in the old Delphi program, counts above the noise threshold (TotalThreshold)
-			       	spectraList.get(i).integrate(ini.thres1, 128) + "; "+			
-			       	//RN2 in the old Delphi, counts inside threshold window (between TotalThres and WindowThreshold)
-			       	spectraList.get(i).integrate(ini.thres1, ini.thres2) + "; "+		
-			       	//RN3 in the old Delphi, counts above the edge
-		        	spectraList.get(i).integrate(spectraList.get(i).edge, 128)+ "; "+		
-			       	//RN4 in the old Delphi
-			       	spectraList.get(i).edge + "; "+		
-			       	spectraList.get(i).ADC2 + "; "+
-			       	spectraList.get(i).ADC2StD + "; "+
-			       	spectraList.get(i).ADC3 + "; "+
-		        	spectraList.get(i).ADC3StD + "; "+
-			       	spectraList.get(i).counter1 + "; "+
-			       	spectraList.get(i).counter2 + "; "+
-			       	spectraList.get(i).fluxslope+ "; "+
-			        spectraList.get(i).fluxoffset+ "; "+
-			        spectraList.get(i).ADC2Slope+ "; "+
-			        spectraList.get(i).ADC2Offset+ "; "+
-			        spectraList.get(i).ADC3Slope+ "; "+
-			        spectraList.get(i).ADC3Offset+ "; "+
-			        spectraList.get(i).Temp1Slope+ "; "+
-			        spectraList.get(i).Temp1Offset+ "; "+
-			        spectraList.get(i).Temp2Slope+ "; "+
-			        spectraList.get(i).Temp2Offset+ "; "+
-			        spectraList.get(i).Temp3Slope+ "; "+
-			        spectraList.get(i).Temp3Offset+ "; "+
-			        spectraList.get(i).Counter1Slope+ "; "+
-			        spectraList.get(i).Counter1Offset+ "; "+
-			        spectraList.get(i).Counter2Slope+ "; "+
-			        spectraList.get(i).Counter2Offset+ "; "+
-			        spectraList.get(i).monitor+ "; \r\n"
-			    );
-	    }
-	    bw.close();
-	    fileOut.close();
-	} catch (FileNotFoundException e1) {
-		// TODO Auto-generated catch block
-		e1.printStackTrace();
-	} catch (IOException e1) {
-		// TODO Auto-generated catch block
-		e1.printStackTrace();
-	}
-	
+			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
+			for (int i=0; i<spectraList.size(); i++) {
+				bw.write(extlines.get(i));				
+			}
+			bw.close();
+		    fileOut.close();
 	/////////////////////////////////////////////
 	//create activity file
 	////////////////////////////////////////////
@@ -2325,41 +2356,26 @@ public class RnLog extends JFrame {
 	FileReader fileReader;
 	File actFile =activity;
 	try {
-		//read in extract file
-		fileReader = new FileReader(extract);
-        BufferedReader bufferedReader = new BufferedReader(fileReader);
-        ArrayList<String> extlines = new ArrayList<String>();
-        String line = null;
-        while ((line = bufferedReader.readLine()) != null) {
-            extlines.add(line);
-        }
-       
-        bufferedReader.close();
-        System.out.println("successfully loaded extract file");
-        if(extlines.size()<2) {
-        	JOptionPane.showMessageDialog(null, "Extract file is empty or has no values."/*, JOptionPane.INFORMATION_MESSAGE*/);
-        	return;
-        }
         //open act File
 		fileOut = new FileOutputStream(actFile);
-    	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
-        bw.write("222-Radon activities calculated with " + SoftwareVersion + "\r\n"+ "\r\n");
+    	BufferedWriter bw1 = new BufferedWriter(new OutputStreamWriter(fileOut));
+        bw1.write("222-Radon activities calculated with " + SoftwareVersion + "\r\n"+ "\r\n");
         //DateTimeFormatter.ofPattern("d M y");
        // System.out.println(java.time.LocalDate.now().format());
         //TODO: das anpassen
-        bw.write("Evaluated by: " + evaluator + " on "); 
-        bw.write(java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))); 
-        bw.write("\r\n");
-        bw.write("Used parameters \r\n");
+        bw1.write("Evaluated by: " + evaluator + " on "); 
+        bw1.write(java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))); 
+        bw1.write("\r\n");
+        bw1.write("Used parameters \r\n");
         String Method="Stockburger";
-        bw.write("Method	    : " + Method + "\r\n");
-        bw.write("Source File : " + extract.getPath() + "\r\n");
-        bw.write("Solid Angle : " + String.valueOf(ini.solidangle) + "\r\n");
-        bw.write("Disequil.   : " + String.valueOf(ini.disequilibrium) + "\r\n");
-        bw.write("Flux Offset : " + String.valueOf(ini.fluxoffset) + "\r\n");
-        bw.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
-        bw.write("Format: \r\n");
-        bw.write("Stoptime,Activity [Bq/m3], Ac[dps],Ac/dt,Total, Window, Edge, temp1[C], temp2[C], temp3[C], Pressure[mbar], LifeTime[sec], Flux[m3/s], ID \r\n");
+        bw1.write("Method	    : " + Method + "\r\n");
+        bw1.write("Source File : " + extract.getPath() + "\r\n");
+        bw1.write("Solid Angle : " + String.valueOf(ini.solidangle) + "\r\n");
+        bw1.write("Disequil.   : " + String.valueOf(ini.disequilibrium) + "\r\n");
+        bw1.write("Flux Offset : " + String.valueOf(ini.fluxoffset) + "\r\n");
+        bw1.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
+        bw1.write("Format: \r\n");
+        bw1.write("Stoptime,Activity [Bq/m3], Ac[dps],Ac/dt,Total, Window, Edge, temp1[C], temp2[C], temp3[C], Pressure[mbar], LifeTime[sec], Flux[m3/s], ID \r\n");
         
         //split extlines to get rid of duplicates or  missing values
         ArrayList<ArrayList<String>> splittedExtlines = new ArrayList<ArrayList<String>>();
@@ -2370,11 +2386,11 @@ public class RnLog extends JFrame {
         // 0-> dont split; 1-> split; 2-> delete 
         int[] flag = new int[extlines.size()];
         flag[1] = 0;
-        tmpList.add(extlines.get(1));
+        tmpList.add(extlines.get(0));
         int j = 0;
-        DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
         
-        for (int i = 2; i< extlines.size(); i++) {
+        
+        for (int i = 1; i< extlines.size(); i++) {
         	
         	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
         	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
@@ -2426,7 +2442,7 @@ public class RnLog extends JFrame {
 	        for(int i=0; i<splittedActlines.size(); i++) {
 	        	for(int k = 0; k < splittedActlines.get(i).size() ; k++) {
 	        		System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
-	        		bw.write(splittedActlines.get(i).get(k) + "\r\n");
+	        		bw1.write(splittedActlines.get(i).get(k) + "\r\n");
 	        	}
 	        }
         } else {
@@ -2436,7 +2452,7 @@ public class RnLog extends JFrame {
         	for(int i = 0; i < splittedActlines.size() ; i++) {
         		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
         			System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
-        			bw.write(splittedActlines.get(i).get(k) + "\r\n");
+        			bw1.write(splittedActlines.get(i).get(k) + "\r\n");
         		}
         		try {
         			//taking last line form the current peace and first line from the next piece
@@ -2445,7 +2461,7 @@ public class RnLog extends JFrame {
         			String next = splittedActlines.get(i+1).get(0);
         			ArrayList<String> fillingStrings = getDateTimeBetween(last, next);
         			for (int l = 0; l < fillingStrings.size(); l++) {
-        				bw.write(fillingStrings.get(l)+ ";" + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + "\r\n");
+        				bw1.write(fillingStrings.get(l)+ ";" + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + "\r\n");
         				}
         		} catch (Exception e2) {
         			//could not access splittedActlines.get(i+1) -> filling done
@@ -2454,7 +2470,7 @@ public class RnLog extends JFrame {
         		
         	}
         }
-        bw.close();
+        bw1.close();
     	btnContinue.setVisible(false);
     	JOptionPane.showMessageDialog(null, "Successfully created " + activity.getName() , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
     	progressBar.setString("");
@@ -2463,12 +2479,22 @@ public class RnLog extends JFrame {
     	//clear the flagged arrays for the next iteration
 		flaggedIdx.clear();
 		flagged.clear();
+		flag = null;
+		
     	
 	} catch (Exception e3) {
     	progressBar.setString("");
     	progressBar.setValue(0);
 		e3.printStackTrace();
 	}
+	
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 }
 	
 	public boolean checkFilename(String Filename) {

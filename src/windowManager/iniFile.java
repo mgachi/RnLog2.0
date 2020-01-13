@@ -144,7 +144,7 @@ public class iniFile {
         		//line starts with commentary mark or is empty
                 continue;
         	}
-        	lines.add(line.replace(" ", "").split(";")[0]);
+        	lines.add(line.split(";")[0]);
         }
     	/*for(int i=0; i< lines.size(); i++) {
         	System.out.println(lines.get(i));
@@ -159,7 +159,7 @@ public class iniFile {
         
         //save values in this class
         for (int i=0; i<lines.size(); i++) {
-        	switch (lines.get(i).split("=")[0]) {
+        	switch (lines.get(i).split("=")[0].trim()) {
         		case "port": port = Integer.parseInt(lines.get(i).split("=")[1]);break;
         		case "thres1": thres1 = Integer.parseInt(lines.get(i).split("=")[1]);break;
         		case "thres2": thres2 = Integer.parseInt(lines.get(i).split("=")[1]);break;
