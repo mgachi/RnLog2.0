@@ -459,7 +459,7 @@ public class Spectra {
     }
     
     //constructor for temporary reference spectrum
-    public Spectra(ArrayList<Spectra> _spectraList) throws IOException {
+    public Spectra(ArrayList<Spectra> _spectraList, iniFile ini) throws IOException {
     	System.out.println("create temporary reference spectrum");
     	name = "temp_ref_spec.ref";
     	//get ParentFile (directory) of first Spectra in List
@@ -505,6 +505,8 @@ public class Spectra {
     	//TODO: hinzufügen vom rest der datei ()die werte am ende)
     	bw.write("- \r\n- \r\n");
     	bw.close();
+    	Spectra hardCoded = new Spectra();
+    	this.calcEdge(hardCoded, ini.thres3, ini.thres4, ini.Edgeoffset);
 	}
 
 	@SuppressWarnings("deprecation")
@@ -512,8 +514,8 @@ public class Spectra {
 		System.out.println("showing " + this.name);
         XYSeries showSpectrum = new XYSeries("");
 		XYSeriesCollection counts = new XYSeriesCollection(showSpectrum);
-        for(int i=0; i< 128; i++) {
-        	showSpectrum.add(i, this.values[i]);
+        for(int i=1; i<= 128; i++) {
+        	showSpectrum.add(i, this.values[i-1]);
         }
 		JFreeChart chart = ChartFactory.createXYLineChart("", "" /*x-axis label*/, "" /*y-axis label*/, counts);
         //chart.getXYPlot().setDataset(chart.getXYPlot().getDataset());

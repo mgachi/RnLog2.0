@@ -28,6 +28,7 @@ import org.jfree.data.xy.XYSeriesCollection;
 import java.awt.Color;
 import javax.swing.JRadioButton;
 import java.awt.SystemColor;
+import java.awt.Toolkit;
 import java.awt.Window;
 
 import javax.swing.JProgressBar;
@@ -39,7 +40,9 @@ import javax.swing.ImageIcon;
 import javax.swing.InputMap;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
+import javax.swing.ProgressMonitor;
 import javax.swing.SwingConstants;
+import javax.swing.SwingWorker;
 import javax.swing.Timer;
 import javax.swing.JFileChooser;
 import java.awt.event.ActionListener;
@@ -67,6 +70,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.awt.event.ActionEvent;
 import javax.swing.JButton;
@@ -769,7 +773,7 @@ public class RnLog extends JFrame {
 				if(spectraList.size() == 0) return false;
 				
 				//down key takes previous spectrum
-		        if(e.getKeyCode() == KeyEvent.VK_DOWN) {
+		        if(e.getKeyCode() == KeyEvent.VK_DOWN && e.getID() == KeyEvent.KEY_PRESSED) {
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx - 1).showSpectra(chartPanel));
 						selectedSpecIdx--;
@@ -780,7 +784,7 @@ public class RnLog extends JFrame {
 		         }
 		        
 		        //right key moves Po edge to the right
-		        if(e.getKeyCode() == KeyEvent.VK_RIGHT) {
+		        if(e.getKeyCode() == KeyEvent.VK_RIGHT && e.getID() == KeyEvent.KEY_PRESSED) {
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx).changeEdge(chartPanel, chart, true));
 					} catch (IOException e1) {
@@ -790,7 +794,7 @@ public class RnLog extends JFrame {
 		        }
 		        
 		        //left key moves Po edge to the left
-		        if(e.getKeyCode() == KeyEvent.VK_LEFT) {
+		        if(e.getKeyCode() == KeyEvent.VK_LEFT && e.getID() == KeyEvent.KEY_PRESSED) {
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx).changeEdge(chartPanel, chart, false));
 					} catch (IOException e1) {
@@ -800,7 +804,7 @@ public class RnLog extends JFrame {
 		        }
 		        
 		        //up key moves to the next spectrum
-		        if(e.getKeyCode() == KeyEvent.VK_UP) {
+		        if(e.getKeyCode() == KeyEvent.VK_UP && e.getID() == KeyEvent.KEY_PRESSED) {
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx + 1).showSpectra(chartPanel));
 						selectedSpecIdx++;
@@ -849,7 +853,7 @@ public class RnLog extends JFrame {
 				}
 		    	System.out.println("spectra chosen");
 				try {
-					RefSpec = new Spectra(spectraList);
+					RefSpec = new Spectra(spectraList, ini);
 					spectraList.clear();
 					spectraList.add(RefSpec);
 					tfEdge.setText(RefSpec.showSpectra(chartPanel));
@@ -1747,9 +1751,9 @@ public class RnLog extends JFrame {
 			//calculate Ac (activity on filter
 			Acs[i] = 0.942 * (Double.valueOf(totals[i]) - Double.valueOf(windows[i]) - (Double.valueOf(Po212s[i]) / 0.4984646)) / Double.valueOf(LTs[i]);   //0.778 * 0.6407 = 0.4984646 
 			
-			//calculate flux in m³/s
+			//calculate flux in m^3/s
 			fluxs[i] = Double.valueOf(extLines.get(i).split(";")[2].replaceAll("\\s+",""));
-			//multiply by slope, add offset and convert to m³/s
+			//multiply by slope, add offset and convert to m^3/s
 			fluxs[i] = ((ini.fluxslope * fluxs[i]) + ini.fluxoffset) / 3600000; 
 			
 			//calculate act_p
@@ -1907,13 +1911,20 @@ public class RnLog extends JFrame {
 				return;
 			}
 		}
-
+		
+		
+		
 		try {
 			for (int i = 0; i < lvl0Dir.listFiles().length; i++) {
 				//check if the file is a spectra
 				if (lvl0Dir.listFiles()[i].isFile() && checkFilename(lvl0Dir.listFiles()[i].getName())) {
 					rawFiles.add(lvl0Dir.listFiles()[i]);
 				}
+				
+				double progress = (((double) i+1.0)/(lvl0Dir.listFiles().length))*100.0);
+				System.out.println(progress);
+				
+				
 				//search for reference spectrum
 				if (lvl0Dir.listFiles()[i].isFile() && lvl0Dir.listFiles()[i].getName().contains("temp_ref_spec.ref")) {
 					try {
@@ -1998,7 +2009,7 @@ public class RnLog extends JFrame {
     			
     			System.out.println("spectra chosen");
 				try {
-					RefSpec = new Spectra(spectraList);
+					RefSpec = new Spectra(spectraList, ini);
 					spectraList.clear();
 					spectraList.add(RefSpec);
 					tfEdge.setText(RefSpec.showSpectra(chartPanel));
