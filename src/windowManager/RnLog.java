@@ -25,6 +25,8 @@ import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
+
+
 import java.awt.Color;
 import javax.swing.JRadioButton;
 import java.awt.SystemColor;
@@ -82,10 +84,13 @@ import javax.xml.ws.Service;
 import javax.swing.event.ChangeEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.awt.Window.Type;
 
-public class RnLog extends JFrame {
-
+public class RnLog extends JFrame 
+					implements PropertyChangeListener {
+				
 	/**
 	 * 
 	 */
@@ -132,6 +137,12 @@ public class RnLog extends JFrame {
 	
 	//load *.ini file
 	public iniFile ini = new iniFile();
+	
+	public ArrayList<File> tempFileList = new ArrayList<File>();
+	
+	public boolean isLoadingFilesDone;
+	public boolean isCopyingFilesDone;
+	public boolean isSettingFilesDone;
 	
 	/**
 	 * Launch the application.
@@ -770,7 +781,10 @@ public class RnLog extends JFrame {
 
 			@Override
 			public boolean dispatchKeyEvent(KeyEvent e) {
+				//if no spectra is loaded -> ignore
 				if(spectraList.size() == 0) return false;
+				//if other window is opened -> ignore
+				if (!RnLog.this.isActive()) return false;
 				
 				//down key takes previous spectrum
 		        if(e.getKeyCode() == KeyEvent.VK_DOWN && e.getID() == KeyEvent.KEY_PRESSED) {
@@ -1515,6 +1529,7 @@ public class RnLog extends JFrame {
 		//continue evaluation
 		mntmNewMenuItem_7.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
+				RefSpec = null;
 				continueEvaluation(progressBar, chartPanel, panel, btnContinueFlagging, btnContinueRefSpectrum);			
 			}
 		});
@@ -1623,22 +1638,26 @@ public class RnLog extends JFrame {
             	for (int x = 0; x < files.length; x++) { 
                 	filenames = filenames + "\n" + files[x].getName();
                		System.out.println("You have selected this file:\n" +files[x]);
-               		if(!checkFilename(files[x].getName()))
-               			continue;	
+               		//checking if the selected file is either ref spectrum or normal spectrum
+               		if (!files[x].getName().contains(".ref")) {
+               			if(!checkFilename(files[x].getName())) {
+                   			continue;
+                   		}               			
+               		}              		               				
                		Spectra actualSpectrum;
                		System.out.println("add actual spectrum");
                		try {
                			actualSpectrum = new Spectra(files[x].getName(), files[x]);
                			//add actual spectrum to list
                			spectraList.add(actualSpectrum);
-               		} catch (Exception e) {// iwo hier ist der fehler...kp
+               		} catch (Exception e) {
                			// TODO Auto-generated catch block
                			System.out.println("Something went wrong, maybe the file is already opened?");
                			e.printStackTrace();
                		}
                 }
             }
-            //zeige erstes Spectrum der auswahl
+            //showing the first spectrum of the selection
         	tfEdge.setText(spectraList.get(0).showSpectra(chartPanel));
          } else if (option == JFileChooser.CANCEL_OPTION){
              System.out.println("User cancelled operation. No file was chosen.");  
@@ -1859,6 +1878,19 @@ public class RnLog extends JFrame {
 		return results;
 	}
 
+	
+	
+	/**
+     * Invoked when task's progress property changes.
+     */
+    public void propertyChange(PropertyChangeEvent evt) {
+        if ("progress".equals(evt.getPropertyName())) {
+            int progress = (Integer) evt.getNewValue();
+            progressBar.setValue(progress);
+            progressBar.setString("Processing files... [" + progress + "%]");
+        } 
+    }
+	
 	//guides the user through the evaluation
 	//this needed to be splitted into two functions, the first one gets the new spectra, copies them
 	//and tries to set the edge, afterwards, if there are flagged spectra, the user can to flag them manually
@@ -1870,8 +1902,7 @@ public class RnLog extends JFrame {
 			iniFile ini = new iniFile();
 			} 
 		
-		//removing ref spectrum data from the previous runs
-		RefSpec = null;
+		//removing spectral data from the previous runs
 		spectraList.clear();
 		System.out.println("setting the progress bar");
 		progressBar.setStringPainted(true);
@@ -1912,36 +1943,82 @@ public class RnLog extends JFrame {
 			}
 		}
 		
-		
-		
 		try {
-			for (int i = 0; i < lvl0Dir.listFiles().length; i++) {
-				//check if the file is a spectra
-				if (lvl0Dir.listFiles()[i].isFile() && checkFilename(lvl0Dir.listFiles()[i].getName())) {
-					rawFiles.add(lvl0Dir.listFiles()[i]);
-				}
+			//checking if the file list is already exists to avoid second loading process
+			if (tempFileList.isEmpty()) {
+				//creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
+				class LoadingFiles extends SwingWorker<Void, Void> {
+			        
+					//main task of the worker; executed in background thread		         
+			        @Override
+			        public Void doInBackground() {
+			        	
+			        	//initialize task properties
+			        	isLoadingFilesDone = false;
+			            int progress;
+			            File lvl0Dir = new File(ini.lvl0);
+			            for (int i = 0; i < lvl0Dir.listFiles().length; i++) {
+			            	if (isLoadingFilesDone) {
+			            		break;
+			            	}
+							//check if the file is a spectra
+							if (lvl0Dir.listFiles()[i].isFile() && checkFilename(lvl0Dir.listFiles()[i].getName())) {
+								tempFileList.add(lvl0Dir.listFiles()[i]);
+							}
+							
+							//calculating remaining progress and sending it to GUI
+							progress = (int) ((((double) i+1.0)/(lvl0Dir.listFiles().length))*100.0);
+							System.out.println(progress);
+							setProgress(progress);
+							
+							//search for reference spectrum
+							if (lvl0Dir.listFiles()[i].isFile() && lvl0Dir.listFiles()[i].getName().contains("temp_ref_spec.ref")) {
+								try {
+									System.out.println("Reference spectrum found: " + lvl0Dir.listFiles()[i] + lvl0Dir.listFiles()[i].getName());
+									RefSpec = new Spectra(lvl0Dir.listFiles()[i].getName(), lvl0Dir.listFiles()[i]);
+								} catch (Exception e) {
+									System.out.println("could not load reference spectrum");
+									JOptionPane.showMessageDialog(null, "The reference spectrum found in the lvl0 directory is brocken. Please provide a valid one." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+									e.printStackTrace();
+								}
+							}
+						}
+			            return null;
+			        }
+			        
+			        //Executed in event dispatching thread after the task is done or if called upon	         
+			        @Override
+			        public void done() {
+			            isLoadingFilesDone = true;
+			            JOptionPane.getRootFrame().dispose();  
+			        }
+			    }	
 				
-				double progress = (((double) i+1.0)/(lvl0Dir.listFiles().length))*100.0;
-				System.out.println(progress);
+				//calling new thread via SwingWorker to simultaneously change GUI and do loading
+				LoadingFiles loadingTask = new LoadingFiles();
+				loadingTask.addPropertyChangeListener(this);
+				loadingTask.execute();	
 				
-				
-				//search for reference spectrum
-				if (lvl0Dir.listFiles()[i].isFile() && lvl0Dir.listFiles()[i].getName().contains("temp_ref_spec.ref")) {
-					try {
-						System.out.println("Reference spectrum found: " + lvl0Dir.listFiles()[i] + lvl0Dir.listFiles()[i].getName());
-						RefSpec = new Spectra(lvl0Dir.listFiles()[i].getName(), lvl0Dir.listFiles()[i]);
-					} catch (Exception e) {
-						System.out.println("could not load reference spectrum");
-						JOptionPane.showMessageDialog(null, "The reference spectrum found in the lvl0 directory is brocken. Please provide a valid one." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-						progressBar.setString("");
-						progressBar.setValue(0);
-						e.printStackTrace();
-						return;
-					}
-				}
+				//user hit cancel -> aborting operations
+				Object[] options = {"Cancel"};
+			    int n = JOptionPane.showOptionDialog(null,
+			                   "Wait until all files are loaded","Loading files...",
+			                   JOptionPane.PLAIN_MESSAGE,
+			                   JOptionPane.INFORMATION_MESSAGE,
+			                   null,
+			                   options,
+			                   options[0]);
+			    if (n == 0) {
+			    	//stopping SwingWorker 
+			    	loadingTask.done();
+			    	Thread.sleep(150);
+			    	tempFileList.clear();
+			    	progressBar.setValue(0);
+			    	progressBar.setString("");
+			    	return;
+			    }
 			}
-			
-			
+	        
 			for (int i = 0; i < lvl2Dir.listFiles().length; i++) {
 				//check if the file is a spectra
 				if (lvl2Dir.listFiles()[i].isFile() && checkFilename(lvl2Dir.listFiles()[i].getName())) {
@@ -1985,16 +2062,19 @@ public class RnLog extends JFrame {
 			return;
 		}
 		
+		
+		rawFiles = (ArrayList<File>) tempFileList.clone();		
 		//double check if the reference spectrum was found
 		if (RefSpec == null) {
 			//no reference spectrum found
 			JOptionPane.showMessageDialog(null, "No reference spectrum found. Please create one first." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-			
+			progressBar.setString("");
+			progressBar.setValue(0);
 			//askong if user want to create one automatically from the raw data
 			int dialogButton = JOptionPane.YES_NO_OPTION;
         	int dialogResult = JOptionPane.showConfirmDialog (null, "Would you like to create a new reference spectrum from the raw data (lvl0 directory)?" ,"No reference spectrum was found!", dialogButton);
         	if(dialogResult == JOptionPane.YES_OPTION){
-        		File rawDataDirectory= new File("user submits directory");
+        		
         			
     			spectraList.clear();
     			//select spectra
@@ -2030,6 +2110,7 @@ public class RnLog extends JFrame {
         	}
 		}
 		
+		tempFileList.clear();
 		//compare the two lists, create a new list which contains the new spectra from lvl0 that need to be evaluated
 		//add them to a Map<String, int <amount of added items>
 		int max = rawFiles.size();
@@ -2112,66 +2193,173 @@ public class RnLog extends JFrame {
 				return;
 			}
 		}
-		String extFilename = extract.getName();
 		
-		//copy the files that need to be evaluated into lvl2	
-		for(int i=0; i<toEvaluate.size(); i++) {
-			try {
-				System.out.println("copy " + toEvaluate.get(i) + " to " +  lvl2Dir + "\\" + toEvaluate.get(i).getName());
-				copyFile(toEvaluate.get(i), new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
-				//dont flag the lvl0 spectra
-				System.out.print("davor :" +toEvaluate.get(i));
-				toEvaluate.set(i, new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
-				System.out.print("danach :" +toEvaluate.get(i));
-			} catch (IOException e) {
-				System.out.println("Could not copy file into lvl2");
-				JOptionPane.showMessageDialog(null, "Could not copy the evaluated file into the lvl2 folder. Maybe you have no writing permissions?"/*, JOptionPane.INFORMATION_MESSAGE*/);
-				e.printStackTrace();
-				break;
-			}
-		}
+		//creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
+		class CopyingFiles extends SwingWorker<Void, Void> {
+	        
+			//main task of the worker; executed in background thread		         
+	        @Override
+	        public Void doInBackground() {
+	        	
+	        	//initialize task properties
+	        	isCopyingFilesDone = false;
+	            int progress;
+	            
+	    		//copy the files that need to be evaluated into lvl2 and adding to spectra list to evaluate
+	    		spectraList.clear();
+	    		for(int i=0; i<toEvaluate.size(); i++) {
+	    			if (isCopyingFilesDone) {
+	            		break;
+	            	}
+	    			
+	    			//calculating remaining progress and sending it to GUI
+					progress = (int) ((((double) i+1.0)/(toEvaluate.size()))*100.0);
+					System.out.println(progress);
+					setProgress(progress);
+	    			
+	    			try {
+	    				System.out.println("copy " + toEvaluate.get(i) + " to " +  lvl2Dir + "\\" + toEvaluate.get(i).getName());
+	    				copyFile(toEvaluate.get(i), new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
+	    				//dont flag the lvl0 spectra
+	    				System.out.print("davor :" +toEvaluate.get(i));
+	    				toEvaluate.set(i, new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
+	    				System.out.print("danach :" +toEvaluate.get(i));
+	    				spectraList.add(new Spectra(toEvaluate.get(i).getName(), toEvaluate.get(i)));
+	    			} catch (IOException e) {
+	    				System.out.println("Could not copy file into lvl2");
+	    				JOptionPane.showMessageDialog(null, "Could not copy the evaluated file into the lvl2 folder. Maybe you have no writing permissions?"/*, JOptionPane.INFORMATION_MESSAGE*/);
+	    				e.printStackTrace();
+	    				break;
+	    			}  catch (Exception e2) {
+	    				System.out.print(toEvaluate.get(i).getName() + " is broken");
+	    				e2.printStackTrace();
+	    			}
+	    		}
+	            return null;
+	        }
+	        
+	        //Executed in event dispatching thread after the task is done or if called upon	         
+	        @Override
+	        public void done() {
+	            isCopyingFilesDone = true;
+	            JOptionPane.getRootFrame().dispose();  
+	        }
+	    }	
 		
-		spectraList.clear();
-		//select spectra
-		for(int i=0; i< toEvaluate.size(); i++) {
-			try {
-				spectraList.add(new Spectra(toEvaluate.get(i).getName(), toEvaluate.get(i)));
-			} catch (Exception e) {
-				System.out.print(toEvaluate.get(i).getName() + " is broken");
-				e.printStackTrace();
-			}
-		}
-			
+		//calling new thread via SwingWorker to simultaneously change GUI and do loading
+		CopyingFiles copyingTask = new CopyingFiles();
+		copyingTask.addPropertyChangeListener(this);
+		copyingTask.execute();		
+		
 		//extract spectra from spectra list and write it into extFile
 		File extFile = extract;
 		System.out.println(extract);
 		FileOutputStream fileOut;
+		
+		//user hit cancel -> aborting operations
+		Object[] options = {"Cancel"};
+	    int n = JOptionPane.showOptionDialog(null,
+	                   "Wait until all files are copied","copying files...",
+	                   JOptionPane.PLAIN_MESSAGE,
+	                   JOptionPane.INFORMATION_MESSAGE,
+	                   null,
+	                   options,
+	                   options[0]);
+	    if (n == 0) {
+	    	//stopping SwingWorker 
+	    	copyingTask.done();
+	    	try {
+				Thread.sleep(150);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+	    	progressBar.setValue(0);
+	    	progressBar.setString("");
+	    	return;
+	    }
+	    
 		try {
 			fileOut = new FileOutputStream(extFile, true);
 			//--------------------------------------^^^^ means append new line, don't override old data
 	    	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
-	    	double progress = 0;
-	    	progressBar.setValue((int) (progress));
-	    	progressBar.setStringPainted(true);
-	    	
-	    	//loop though the selected spectra, see if they need to be flagged	       
-	        for(int i=0; i<spectraList.size(); i++) {
-	        	//set edge of spectrum according to reference (if no edge is set yet)
-	        	spectraList.get(i).showSpectra(chartPanel);
-	        	spectraList.get(i).calcEdge(RefSpec, ini.thres3, ini.thres4, ini.Edgeoffset);
-	        	spectraList.get(i).showSpectra(chartPanel);
-	        	progress =  (((double) i+1.0)/(spectraList.size())*100.0);
-	        	progressBar.setValue((int) (progress));
-	        	//flag spectra
-	        	if(spectraList.get(i).edge > ini.Edgeoffset+ini.UpperFlagThres || spectraList.get(i).edge < ini.Edgeoffset-ini.LowerFlagThres) {
-	        		//for continue evaluation: remember these spectra and ask user to set edge manually
-	        		
-	        		//add actual spectrum to list
-	        		flagged.add(spectraList.get(i));  
-	        		//add index of the flagged file to array
-	        		flaggedIdx.add(i);
-	        	}
-	        }
+	        
+	        //creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
+			class SettingEdge extends SwingWorker<Void, Void> {
+		        
+				//main task of the worker; executed in background thread		         
+		        @Override
+		        public Void doInBackground() {
+		        	
+		        	//initialize task properties
+		        	isSettingFilesDone = false;
+		            int progress;
+		            
+		    		//loop though the selected spectra, see if they need to be flagged	       
+			        for(int i=0; i<spectraList.size(); i++) {
+			        	if (isSettingFilesDone) {
+		            		break;
+		            	}
+			        	
+			        	//calculating remaining progress and sending it to GUI
+						progress = (int) ((((double) i+1.0)/(spectraList.size()))*100.0);
+						setProgress(progress);
+			        	
+			        	//set edge of spectrum according to reference (if no edge is set yet)
+			        	try {
+							spectraList.get(i).calcEdge(RefSpec, ini.thres3, ini.thres4, ini.Edgeoffset);
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+			        	spectraList.get(i).showSpectra(chartPanel);
+			        	//flag spectra
+			        	if(spectraList.get(i).edge > ini.Edgeoffset+ini.UpperFlagThres || spectraList.get(i).edge < ini.Edgeoffset-ini.LowerFlagThres) {
+			        		//for continue evaluation: remember these spectra and ask user to set edge manually
+			        		
+			        		//add actual spectrum to list
+			        		flagged.add(spectraList.get(i));  
+			        		//add index of the flagged file to array
+			        		flaggedIdx.add(i);
+			        	}
+			        }
+		            return null;
+		        }
+		        
+		        //Executed in event dispatching thread after the task is done or if called upon	         
+		        @Override
+		        public void done() {
+		        	isSettingFilesDone = true;
+		            JOptionPane.getRootFrame().dispose();  
+		        }
+		    }	
+			
+			//calling new thread via SwingWorker to simultaneously change GUI and do loading
+			SettingEdge settingTask = new SettingEdge();
+			settingTask.addPropertyChangeListener(this);
+			settingTask.execute();
+			
+			//user hit cancel -> aborting operations
+		    n = JOptionPane.showOptionDialog(null,
+		                   "Wait until Po edge is set...","copying files...",
+		                   JOptionPane.PLAIN_MESSAGE,
+		                   JOptionPane.INFORMATION_MESSAGE,
+		                   null,
+		                   options,
+		                   options[0]);
+		    if (n == 0) {
+		    	//stopping SwingWorker 
+		    	settingTask.done();
+		    	try {
+					Thread.sleep(150);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+		    	progressBar.setValue(0);
+		    	progressBar.setString("");	
+		    	return;
+		    }
 	        
 	      //removing flagged spectra from the spectra list
     		for (int i = flaggedIdx.size() - 1; i >= 0; i--) {
@@ -2224,8 +2412,9 @@ public class RnLog extends JFrame {
 	        	}
 	        } 
 	        
-	        if (flagged.size()==0) {
+	        if (flagged.size()==0) {	        	
 	        	continueEvaluation2(btnContinue);
+	        	return;
 	        }
 		} catch (FileNotFoundException e1) {
 			// TODO Auto-generated catch block
@@ -2352,6 +2541,7 @@ public class RnLog extends JFrame {
 	String evaluator = (String) JOptionPane.showInputDialog(null,"Last evaluated by:",
             "Creating ACT File",
             JOptionPane.PLAIN_MESSAGE, null, null, "Your name");
+
 	if(evaluator == null || (evaluator != null && ("".equals(evaluator)))) {
 		progressBar.setValue(0);
 		progressBar.setString("");

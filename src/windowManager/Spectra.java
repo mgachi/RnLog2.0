@@ -315,147 +315,6 @@ public class Spectra {
         Counter1Offset=0.0;
         Counter2Slope=0.0;
         Counter2Offset=0.0;
-    	
-    	
-    	/*
-    	04.07.2018 13:00:00
-    	1093.943;3.725;0.000;0.000;0.000;0.000;0.000;0.410;0.000;0.410;0.000;0.410; 0.000;0.000; 0.000;0.000;
-    	551 LT
-    	14
-    	19
-    	24
-    	15
-    	9
-    	2
-    	2
-    	5
-    	2
-    	2
-    	0
-    	0
-    	0
-    	0
-    	4
-    	3
-    	16
-    	10
-    	7
-    	13
-    	16
-    	31
-    	18
-    	36
-    	31
-    	37
-    	43
-    	51
-    	33
-    	64
-    	50
-    	65
-    	89
-    	104
-    	103
-    	100
-    	77
-    	48
-    	28
-    	21
-    	21
-    	5
-    	11
-    	8
-    	5
-    	2
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	0
-    	4_KIT_30
-    	19.85000; 0.00000; 1.00000; 0.00000; 1.00000; 0.00000;slope offset 3x ADC
-    	 1.00000; 0.00000; 1.00000; 0.00000; 1.00000; 0.00000;slope offset 3x Temp
-    	 1.00000; 0.00000; 1.00000; 0.00000;slope offset 2x Cnt
-    	49*/
-
-    	
     }
     
     //constructor for temporary reference spectrum
@@ -503,10 +362,18 @@ public class Spectra {
     	}
     	bw.write(_spectraList.get(0).monitor + "\r\n");
     	//TODO: hinzufügen vom rest der datei ()die werte am ende)
-    	bw.write("- \r\n- \r\n");
+    	bw.write("- \r\n- \r\n- \r\n");
     	bw.close();
-    	Spectra hardCoded = new Spectra();
-    	this.calcEdge(hardCoded, ini.thres3, ini.thres4, ini.Edgeoffset);
+    	File tempSpecFile = new File("C:\\Users\\mgbri\\Desktop\\temp_ref_spec.ref");
+    	Spectra tempRefSpec;
+		try {
+			tempRefSpec = new Spectra(tempSpecFile.getName(), tempSpecFile);
+			System.out.println(ini.thres3+ "    " + ini.thres4+ "    " +  ini.Edgeoffset);
+			this.calcEdge(tempRefSpec, ini.thres3, ini.thres4, ini.Edgeoffset);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}    	
 	}
 
 	@SuppressWarnings("deprecation")
