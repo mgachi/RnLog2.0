@@ -1921,7 +1921,7 @@ public class RnLog extends JFrame {
 					rawFiles.add(lvl0Dir.listFiles()[i]);
 				}
 				
-				double progress = (((double) i+1.0)/(lvl0Dir.listFiles().length))*100.0);
+				double progress = (((double) i+1.0)/(lvl0Dir.listFiles().length))*100.0;
 				System.out.println(progress);
 				
 				
