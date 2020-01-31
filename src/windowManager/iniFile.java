@@ -191,7 +191,14 @@ public class iniFile {
         		case "LowerFlagThres": LowerFlagThres = Integer.parseInt(lines.get(i).split("=")[1]);break;
         		case "UpperFlagThres": UpperFlagThres = Integer.parseInt(lines.get(i).split("=")[1]);break;
         		case "fill": fill = Integer.parseInt(lines.get(i).split("=")[1]);break;
-        		case "filler": filler = lines.get(i).split("=")[1];break;
+        		case "filler":
+        			try{
+        				filler = lines.get(i).split("=")[1];break;
+        			} catch(ArrayIndexOutOfBoundsException e) {
+        				//user has chosen an empty string as filler parameter
+        				filler = "";
+        				break;
+        			}
         		//added for continue evaluation
         		case "lvl0": lvl0 = lines.get(i).trim().split("=")[1];break;
         		case "lvl1": lvl1 = lines.get(i).trim().split("=")[1];break;
@@ -329,6 +336,19 @@ public class iniFile {
     	bw.close();
 	}
      */   
+	
+	//saving new edgeOffset (after the edge to the refSpectrum was set)
+	public void saveNewEdgeoffsest(Integer newEdgeoffset) {
+		this.Edgeoffset = newEdgeoffset;
+		System.out.println("overwriting existing ini file");
+		try {
+			createNewFile(_pathToIniFile);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}		
+	}
+	
 	private void createNewFile (File pathToIniFile) throws Exception {
 		//create a new ini file out of standard values
 		File newIni = null;

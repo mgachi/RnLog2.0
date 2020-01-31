@@ -361,9 +361,17 @@ public class Spectra {
         	bw.write(values[j] + "\r\n");
     	}
     	bw.write(_spectraList.get(0).monitor + "\r\n");
-    	//TODO: hinzufügen vom rest der datei ()die werte am ende)
     	bw.write("- \r\n- \r\n- \r\n");
     	bw.close();
+    	
+    	//calculating the edge of the refSpec using the hard coded spectrum
+    	Spectra hardCoded = new Spectra();
+    	this.calcEdge(hardCoded, ini.thres3, ini.thres4, ini.Edgeoffset);
+    	//if the edge is calculated completely wrong set to the default value
+    	if (this.edge < 85) {
+    		this.edge = -1;
+    	}
+    	/*
     	File tempSpecFile = new File("C:\\Users\\mgbri\\Desktop\\temp_ref_spec.ref");
     	Spectra tempRefSpec;
 		try {
@@ -373,7 +381,8 @@ public class Spectra {
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}    	
+		}    
+		*/	
 	}
 
 	@SuppressWarnings("deprecation")
