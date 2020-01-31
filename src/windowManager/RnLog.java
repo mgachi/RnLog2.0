@@ -25,8 +25,6 @@ import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
-
-
 import java.awt.Color;
 import javax.swing.JRadioButton;
 import java.awt.SystemColor;
@@ -91,9 +89,7 @@ import java.awt.Window.Type;
 public class RnLog extends JFrame 
 					implements PropertyChangeListener {
 				
-	/**
-	 * 
-	 */
+	
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
 	public static JTextField textField;
@@ -137,16 +133,15 @@ public class RnLog extends JFrame
 	
 	//load *.ini file
 	public iniFile ini = new iniFile();
-	
+	//global temporary holder for the files
 	public ArrayList<File> tempFileList = new ArrayList<File>();
-	
+	//indicators of complicity for the SwingWorkers
 	public boolean isLoadingFilesDone;
 	public boolean isCopyingFilesDone;
 	public boolean isSettingFilesDone;
+	public boolean isSortingExtractFileDone;
 	
-	/**
-	 * Launch the application.
-	 */
+	//Launch the application.
 	public static void main(String[] args) {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
@@ -159,10 +154,8 @@ public class RnLog extends JFrame
 			}
 		});
 	}
-
-	/**
-	 * Create the frame.
-	 */
+	
+	//creating the main frame
 	public RnLog() {
 		setResizable(false);
 		setBackground(Color.RED);
@@ -602,12 +595,6 @@ public class RnLog extends JFrame
 		chart.removeLegend();
 		chart.setTitle("");
 		chart.getPlot().setBackgroundPaint( Color.WHITE );
-		
-		
-		//TODO: Gridlines auf schwarz setzen
-		//CategoryPlot plot = chart.getCategoryPlot();
-		//plot.setDomainGridlinePaint(Color.BLACK);
-	    //plot.setRangeGridlinePaint(Color.BLACK);
 		chartPanel.setChart(chart);	
 		
 		mntmNewMenuItem.addActionListener(new ActionListener() {
@@ -923,6 +910,7 @@ public class RnLog extends JFrame
 			        //defined globally
 			        if(option == JFileChooser.APPROVE_OPTION) {
 			        	int i = fileDialog.getSelectedFile().getName().lastIndexOf('.');
+			        	//checking if the file extension is .ref
 	        			if (!(fileDialog.getSelectedFile().getName().endsWith(".ref"))) {
 			        		System.out.print(fileDialog.getSelectedFile().getName().substring(i+1));
 		      				JOptionPane.showMessageDialog(null, "Provided file is not a reference file (.ref)!" , "Load reference spectrum", JOptionPane.ERROR_MESSAGE);
@@ -936,8 +924,6 @@ public class RnLog extends JFrame
 							// TODO Auto-generated catch block
 							e1.printStackTrace();
 						}
-			            
-			            
 			        }
 			    	
 			    } else {
@@ -950,6 +936,7 @@ public class RnLog extends JFrame
         		if (fileChooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
         			File extFile = fileChooser.getSelectedFile();
         			try {
+        				//checking if the file extension is .txt and setting it to .txt if other
 	        			if (!(extFile.getName().endsWith(".txt"))) {
 	        				extFile = new File(extFile+".txt");
 	        			}
@@ -984,8 +971,7 @@ public class RnLog extends JFrame
 				        		flaggedIdx[i]=1;
 				        		System.out.println("copied " + spectraList.get(i).path.getPath() + " to " + tmpFlagged.getPath() );
 				        		continue;
-				        	}
-				        	//TODO: berechnung der slopes und RNs
+				        	}				        	
 				        	bw.write(spectraList.get(i).datetime + "; " +
 				        	spectraList.get(i).LT + "; " +
 				        	spectraList.get(i).ADC1 + "; "+
@@ -1241,6 +1227,8 @@ public class RnLog extends JFrame
 			}
 		});
 		
+		
+		
 		//make activity file from multiple log files
 		mntmNewMenuItem_8.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -1283,33 +1271,103 @@ public class RnLog extends JFrame
 			    		        line = bufferedReader.readLine();
 			    		        while ((line = bufferedReader.readLine()) != null) {
 			    		            extlines.add(line);
+			    		            System.out.println(line);
 			    		        }
 			    		        bufferedReader.close();
-			    		        System.out.println("successfully loaded extract file number " + (x + 1));
-			            		
+			    		        System.out.println("successfully loaded extract file number " + (x + 1));			            		
 			                }
-			            }
-				        
+			            }			            
+
+		        		//sending first info to the progressBar
+			            progressBar.setValue(0);
+        	            progressBar.setString("Sorting extract file... [" + 0 + "%]");
+			            
 			            //sorting entries in the final extract file by the measurement time
 			            DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
-			            int minIndex;
-				        for (int i = 0; i<extlines.size()-1; i++) {
-				        	String minTimeExtLine = extlines.get(i);
-				        	minIndex = i;
-				        	for (int j = i+1; j< extlines.size(); j++) {
-					        	long currentMin = formatter.parse(minTimeExtLine.split(";")[0]).getTime();
-					        	long currentLine =  formatter.parse(extlines.get(j).split(";")[0]).getTime();
-					        	if(currentMin > currentLine) {
-					        		minTimeExtLine = extlines.get(j);
-					        		minIndex = j;
-					        	}
+			            
+			            //creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
+			            class SortingExtractFile extends SwingWorker<Void, Void> {
+					        
+							//main task of the worker; executed in background thread		         
+					        @Override
+					        public Void doInBackground() {
+					        	
+					        	//initialize task properties
+					        	isSortingExtractFileDone = false;
+					            int progress;
+					            
+					            //sorting the combines extract file using the Insertion sorting algorithm
+					            for (int i = 1; i < extlines.size(); i++) {	
+					            	//stop if user canceled
+					            	if (isSortingExtractFileDone) {
+					            		break;
+					            	}
+					            	
+					            	//calculating remaining progress and sending it to GUI
+									progress = (int) ((((double) i+1.0)/(extlines.size()))*100.0);
+									System.out.println(progress);
+									setProgress(progress);
+					            	
+					                String current = extlines.get(i);
+					                double currentTime;
+									try {
+										currentTime = formatter.parse(current.split(";")[0]).getTime();
+										int j = i - 1;
+						                while(j >= 0 &&  currentTime < formatter.parse(extlines.get(j).split(";")[0]).getTime()) {
+						                	extlines.set(j+1,extlines.get(j));
+						                    j--;
+						                }
+						                // at this point we've exited, so j is either -1
+						                // or it's at the first element where current >= a[j]
+						                extlines.set(j+1, current);
+									} catch (ParseException e) {
+										// TODO Auto-generated catch block
+										e.printStackTrace();
+									}					                
+					            }
+					            return null;
 					        }
-				        	
-				        	//changing places of current i element with the minimum of the remaining
-				        	extlines.set(minIndex, extlines.get(i));
-				        	extlines.set(i, minTimeExtLine);
-		
-				        }
+					        
+					        //Executed in event dispatching thread after the task is done or if called upon	         
+					        @Override
+					        public void done() {
+					        	isSortingExtractFileDone = true;
+					            JOptionPane.getRootFrame().dispose();  
+					        }
+					    }	
+						
+						//calling new thread via SwingWorker to simultaneously change GUI and do loading
+			            SortingExtractFile sortingTask = new SortingExtractFile();
+			            sortingTask.addPropertyChangeListener(new PropertyChangeListener() {
+			                @Override
+			                public void propertyChange(PropertyChangeEvent evt) {
+			        	        if ("progress".equals(evt.getPropertyName())) {
+			        	            //int progress = (Integer) evt.getNewValue();
+			        	            progressBar.setValue((Integer) evt.getNewValue());
+			        	            progressBar.setString("Sorting extract file... [" + evt.getNewValue() + "%]");			        	            
+			        	        } 
+			        	    }
+			            });
+			            sortingTask.execute();	
+						
+						//user hit cancel -> aborting operations
+						Object[] options = {"Cancel"};
+					    int n = JOptionPane.showOptionDialog(null,
+					                   "Wait until Log (extract) file being sorted by the entry date","Sorting entries...",
+					                   JOptionPane.PLAIN_MESSAGE,
+					                   JOptionPane.INFORMATION_MESSAGE,
+					                   null,
+					                   options,
+					                   options[0]);
+					    if (n == 0) {
+					    	//stopping SwingWorker 
+					    	sortingTask.done();
+					    	Thread.sleep(150);
+					    	tempFileList.clear();
+					    	progressBar.setValue(0);
+					    	progressBar.setString("");
+					    	return;
+					    }
 				        
 				        int dialogButton = JOptionPane.YES_NO_OPTION;
 			        	int dialogResult = JOptionPane.showConfirmDialog (null, "Would you like to save combined and sorted Log file?" ,"Save new Log file?", dialogButton);
@@ -1554,6 +1612,7 @@ public class RnLog extends JFrame
 				btnContinueRefSpectrum.addActionListener(new ActionListener() {
 					public void actionPerformed(ActionEvent arg0) {
 						btnContinueRefSpectrum.setVisible(false);
+						ini.saveNewEdgeoffsest(RefSpec.edge);
 						continueEvaluation(progressBar, chartPanel, panel, btnContinueFlagging, btnContinueRefSpectrum);
 					}
 				});
@@ -1626,13 +1685,12 @@ public class RnLog extends JFrame
         fileDialog.setMultiSelectionEnabled(true);
         //In response to a button click:
         int option = fileDialog.showOpenDialog(null);
-        //create list of spectra
-        //ArrayList<Spectra> spectraList = new ArrayList<Spectra>();
+        
         //defined globally
         spectraList.clear();
         if(option == JFileChooser.APPROVE_OPTION) {
-        	//  File[] files = getSelectedFiles(fileDialog);
-            /*final*/ File[] files = fileDialog.getSelectedFiles();
+        	
+            File[] files = fileDialog.getSelectedFiles();
         	System.out.println("get selected files");
             if (files != null && files.length > 0){
             	for (int x = 0; x < files.length; x++) { 
@@ -1877,12 +1935,9 @@ public class RnLog extends JFrame
 		}
 		return results;
 	}
-
 	
-	
-	/**
-     * Invoked when task's progress property changes.
-     */
+	//display of the progress is implemented though the SwingWorker and corresponding PropertyListener
+    //Invoked when task's progress property changes.
     public void propertyChange(PropertyChangeEvent evt) {
         if ("progress".equals(evt.getPropertyName())) {
             int progress = (Integer) evt.getNewValue();
@@ -1908,7 +1963,7 @@ public class RnLog extends JFrame
 		progressBar.setStringPainted(true);
 		progressBar.setString("gathering spectra from lvl0 and lvl2");
 		progressBar.setValue(0);
-		String lvl0=  ini.lvl0; //"C:\\Users\\Alessandro\\eclipse-workspace\\AutoRnLog\\lvl0\\";
+		String lvl0=  ini.lvl0; // i.g. "C:\\Users\\Alessandro\\eclipse-workspace\\AutoRnLog\\lvl0\\";
 		String lvl1=  ini.lvl1; 
 		String lvl2=  ini.lvl2; 
 		//compare the files from lvl0 and lvl2, if a file is not in lvl2 but its after the last file in lvl0 -> continue evaluation
@@ -2024,7 +2079,6 @@ public class RnLog extends JFrame
 				if (lvl2Dir.listFiles()[i].isFile() && checkFilename(lvl2Dir.listFiles()[i].getName())) {
 					evFiles.add(lvl2Dir.listFiles()[i]);
 				}
-				
 			}
 			
 			//creating directories for the extract and activity files
@@ -2062,7 +2116,7 @@ public class RnLog extends JFrame
 			return;
 		}
 		
-		
+		//getting the raw files from the SwingWorker
 		rawFiles = (ArrayList<File>) tempFileList.clone();		
 		//double check if the reference spectrum was found
 		if (RefSpec == null) {
@@ -2070,11 +2124,10 @@ public class RnLog extends JFrame
 			JOptionPane.showMessageDialog(null, "No reference spectrum found. Please create one first." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
 			progressBar.setString("");
 			progressBar.setValue(0);
-			//askong if user want to create one automatically from the raw data
+			//asking if user want to create ref spec automatically from the raw data
 			int dialogButton = JOptionPane.YES_NO_OPTION;
         	int dialogResult = JOptionPane.showConfirmDialog (null, "Would you like to create a new reference spectrum from the raw data (lvl0 directory)?" ,"No reference spectrum was found!", dialogButton);
         	if(dialogResult == JOptionPane.YES_OPTION){
-        		
         			
     			spectraList.clear();
     			//select spectra
@@ -2101,8 +2154,6 @@ public class RnLog extends JFrame
 					e1.printStackTrace();
 				}
 				
-				
-				
         	} else {
         		progressBar.setString("");
     			progressBar.setValue(0);
@@ -2110,6 +2161,7 @@ public class RnLog extends JFrame
         	}
 		}
 		
+		//clearing global variable for the next run
 		tempFileList.clear();
 		//compare the two lists, create a new list which contains the new spectra from lvl0 that need to be evaluated
 		//add them to a Map<String, int <amount of added items>
@@ -2177,21 +2229,6 @@ public class RnLog extends JFrame
 		} catch (IOException e2) {
 			// TODO Auto-generated catch block
 			e2.printStackTrace();
-		}
-		
-		
-		        
-		if (activity == null) {
-			System.out.println("No activity file found, creating a new one at " + lvl2Dir.getPath()+"\\activity.txt");
-			File a = new File(lvl2Dir.getPath()+"\\activity.act");
-			try {
-				a.createNewFile();
-				activity = a;
-			} catch (IOException e1) {
-				JOptionPane.showMessageDialog(null, "Could not create the activity file, maybe you have no writing permissions?" , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-				e1.printStackTrace();
-				return;
-			}
 		}
 		
 		//creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
@@ -2447,7 +2484,6 @@ public class RnLog extends JFrame
 			spectraList = (ArrayList<Spectra>) tmpList.clone();
 			
 			//writing the extract file
-			
 			ArrayList<String> extlines = new ArrayList<String>();
 			for (int i=0; i<spectraList.size(); i++) {
 				extlines.add(spectraList.get(i).datetime + "; " +
@@ -2491,7 +2527,6 @@ public class RnLog extends JFrame
 				        spectraList.get(i).Counter2Slope+ "; "+
 				        spectraList.get(i).Counter2Offset+ "; "+
 				        spectraList.get(i).monitor+ "; \r\n");
-				
 			}
 			
 			//sorting entries in the final extract file by the measurement time
@@ -2514,13 +2549,11 @@ public class RnLog extends JFrame
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-		        	
 		        }
 	        	
 	        	//changing places of current i element with the minimum of the remaining
 	        	extlines.set(minIndex, extlines.get(i));
 	        	extlines.set(i, minTimeExtLine);
-
 	        }
 			
 		    fileOut = new FileOutputStream(extract, true);
@@ -2534,7 +2567,6 @@ public class RnLog extends JFrame
 	/////////////////////////////////////////////
 	//create activity file
 	////////////////////////////////////////////
-	//TODO: don't completely redo activtiy file
 	
 	//who created the file
 	progressBar.setString("creating activity file");
@@ -2548,8 +2580,6 @@ public class RnLog extends JFrame
 		return;
 	}
 	System.out.println("Evaluator: " + evaluator);
-	//select extract file
-	//Create a file chooser
 
     String actFilename = activity.getName();
 	String points = "1";	
@@ -2561,9 +2591,6 @@ public class RnLog extends JFrame
 		fileOut = new FileOutputStream(actFile);
     	BufferedWriter bw1 = new BufferedWriter(new OutputStreamWriter(fileOut));
         bw1.write("222-Radon activities calculated with " + SoftwareVersion + "\r\n"+ "\r\n");
-        //DateTimeFormatter.ofPattern("d M y");
-       // System.out.println(java.time.LocalDate.now().format());
-        //TODO: das anpassen
         bw1.write("Evaluated by: " + evaluator + " on "); 
         bw1.write(java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))); 
         bw1.write("\r\n");
@@ -2605,8 +2632,8 @@ public class RnLog extends JFrame
         		tmpList.add(extlines.get(i));
         		System.out.println("new Array of extLines " + extlines.get(i));
         	}
-	        	else if((actual - last) < 60000 ) {
-	        		//if (Datetime_last - Datetime_current) < 600s
+	        	else if((actual - last) < 6000 ) {
+	        		//if (Datetime_last - Datetime_current) < 60s
 	        		flag[i] = 2; //remove this
 	        		System.out.println("remove " + (actual - last));
 	        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
@@ -2622,7 +2649,7 @@ public class RnLog extends JFrame
         splittedExtlines.add((ArrayList<String>) tmpList.clone());
 		tmpList.clear();
 		
-        //berechnung der Werte mit Stockburger
+        //calculating the values with Stockburger
         System.out.println("Calculating Stockburger");
         for(int x = 0; x < splittedExtlines.size(); x++) {	 
         	tmpList = (ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone();
@@ -2632,8 +2659,7 @@ public class RnLog extends JFrame
         	splittedActlines.add(tmpList);
         }
         
-        //gather and fuse, if fill == true
-		//should the values be filled up?
+        //gather, fuse and fill if variable "fill"  == true
         Boolean fill = false;
         if(ini.fill == 1) fill = true;
         if(!fill || splittedActlines.size() == 1) {
