@@ -16,6 +16,9 @@ Functions of the RnLog 2.4:
 
 	-Make Activity File:
 		Choose ONE log (extract) file (.txt) to create activity (.act) file; default start location of the FileChooser is the folder with the extract files (from ini);
+		during the creation of the activity file, log file is splitted if the time gap between last and current spectrum is largeer than 1800s;
+		if the the time gap is smaller than 60s, current spectrum is deleted from the evaluation cycle, assuming that it is dublicate;
+ 		activity file is calculated using the Stockburger algorithm. The gaps can be filled with custom string (see Evaluation settings);
 		the resulting activity file is saved in the same folder as Log (extract) file.
 
 	-Make Activity File from multiple log files:
@@ -23,6 +26,9 @@ Functions of the RnLog 2.4:
 		before proceding the combined log file is sorted according to measurement date in the ascending order using insertion algorithm;
 		sorting task is time consuming so the progress bar was implemented with option of cancel the operation;
 		then user is asked if the combined log file ahould be saved; default start location of the FileChooser is the folder with the extract files (from ini);
+		during the creation of the activity file, log file is splitted if the time gap between last and current spectrum is largeer than 1800s;
+		if the the time gap is smaller than 60s, current spectrum is deleted from the evaluation cycle, assuming that it is dublicate;
+ 		activity file is calculated using the Stockburger algorithm. The gaps can be filled with custom string (see Evaluation settings);
 		finally used is asked, where the activity file should be saved; default start location of the FileChooser is the folder with the activity files (from ini).
 		In all saving operations, if no extension is given (or it is wrong; .txt or .act respectively) program adds one.
 	
@@ -30,8 +36,8 @@ Functions of the RnLog 2.4:
 		Full evaluation cycle.
 		Loading files from raw spectra directory (lvl0). As loading task is time consuming it was implemented with progress bar with option of canceling.
 		If no reference spactrum was found in the lvl0 directory, user is asked if one should be created based on the current loaded raw data.
-		After the ref spec is created the edge should be set manually AND EdgeOffset parameter in the ini file should be accordingly adjusted(see Evaluation setting).
-		After these actions are done user should press continue evaluation button to contionue execution. Newly created ref spec is saved in the lvl0 folder.
+		After the ref spec is created the edge should be set manually. After the edge is set, user should press continue evaluation button to contionue execution. 
+		Newly created ref spec is saved in the lvl0 folder. EdgeOffset parameter in the ini file is saved automatically according to the ref spec edge (see Evaluation setting).
 		The name of the last spectrum in the lvl0 is compared to the name of the last spectrum in the folder with evaluated spectra (lvl2).
 		If they are the same, program concludes that all spectra are already evaluated and stop execution.
 		The raw spectra (beginning with the last in the lvl2 and to the end of the lvl0) then are copied from lvl0 to the lvl2;   
@@ -45,7 +51,7 @@ Functions of the RnLog 2.4:
 		If NO, all flagged spectra are moved to the flagged subfolder in the lvl2 folder and the evaluation is resumed.
 		Log file is saved in the folder with the extract files (from ini). The name is the same as the directory name of the lvl0.
 		The files are NOT being overwriten. If the name is already used, numeric sufix (e.g. '_1','_2', ect.) is added.
-		During the creaetion of the activity file, log file is splitted if the time gap between last and current spectrum is largeer than 1800s.
+		During the creation of the activity file, log file is splitted if the time gap between last and current spectrum is largeer than 1800s.
 		If the the time gap is smaller than 60s, current spectrum is deleted from the evaluation cycle, assuming that it is dublicate.
  		Activity file is calculated using the Stockburger algorithm. The gaps can be filled with custom string (see Evaluation settings).
 		The activity file is saved in the folder with the activity files (from ini). The name is the same as the directory name of the lvl0.
