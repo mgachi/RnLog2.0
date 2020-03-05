@@ -36,6 +36,7 @@ public class iniFile {
 	public int Edgeoffset = 96;
 	public double fluxslope = 1.0;             
 	public double fluxoffset = 0;
+	public double fluxthreshold = 0;
 	public String id = "1_HD";
 	public String decimalchr = ".";
 	public double solidangle = 0.2650;          
@@ -173,6 +174,7 @@ public class iniFile {
         		case "Edgeoffset": Edgeoffset = Integer.parseInt(lines.get(i).split("=")[1]);break;
         		case "fluxslope": fluxslope = Double.parseDouble(lines.get(i).split("=")[1]);break;
         		case "fluxoffset": fluxoffset = Double.parseDouble(lines.get(i).split("=")[1]);break;
+        		case "fluxthreshold": fluxthreshold = Double.parseDouble(lines.get(i).split("=")[1]);break;
         		case "id": id = lines.get(i).split("=")[1];break; 
         		case "decimalchr": decimalchr = lines.get(i).split("=")[1];break;
         		case "solidangle": solidangle = Double.parseDouble(lines.get(i).split("=")[1]);break;
@@ -222,7 +224,7 @@ public class iniFile {
 	}
 	
 	public void overwriteIniFile(File file, JTextField tfMonitorID, JTextField tfNoiseThreshold, JTextField tfWindowThreshold, JTextField tfLowerFitThreshold, JTextField tfUpperFitThreshold, JTextField tfLowerFlagThreshold, 
-			JTextField tfUpperFlagThreshold, JTextField tfFluxslope, JTextField tfFluxoffset, JTextField tfSolidangle, JTextField tfDisequilibriumfactor, JTextField tfHoentzsch, JTextField tfInterval, JTextField tfEdgeoffset, JTextField tfIPAdress, 
+			JTextField tfUpperFlagThreshold, JTextField tfFluxslope, JTextField tfFluxoffset, JTextField tfFluxthreshold, JTextField tfSolidangle, JTextField tfDisequilibriumfactor, JTextField tfHoentzsch, JTextField tfInterval, JTextField tfEdgeoffset, JTextField tfIPAdress, 
 			JTextField tfFluxchannel, JTextField tfFiller, JCheckBox chckbxfillup, JTextField tfRawDataPath, JTextField tfAtomaticDataPath, JTextField tfBrowsedDataPath, JTextField tfextractFileFolder, JTextField tfactivityFileFolder) throws Exception, IOException {
 		
 
@@ -247,6 +249,7 @@ public class iniFile {
 			
 				this.fluxslope = Double.parseDouble(tfFluxslope.getText());
 				this.fluxoffset = Double.parseDouble(tfFluxoffset.getText());
+				this.fluxthreshold = Double.parseDouble(tfFluxthreshold.getText());
 				this.solidangle = Double.parseDouble(tfSolidangle.getText());
 				this.disequilibrium = Double.parseDouble(tfDisequilibriumfactor.getText());
 				this.Hoen = Integer.parseInt(tfHoentzsch.getText());
@@ -375,6 +378,7 @@ public class iniFile {
         bw.write("invl=" + invl + "\r\n");
         bw.write("Edgeoffset=" + Edgeoffset + "\r\n");
         bw.write("fluxslope=" + fluxslope + "\r\n");
+        bw.write("fluxthreshold=" + fluxthreshold + "\r\n");
         bw.write("id=" + id + "\r\n");
         bw.write("decimalchr=" + decimalchr + "\r\n");
         bw.write("solidangle=" + solidangle + "\r\n");
