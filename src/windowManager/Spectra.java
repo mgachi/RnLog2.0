@@ -369,7 +369,7 @@ public class Spectra {
     	this.calcEdge(hardCoded, ini.thres3, ini.thres4, ini.Edgeoffset);
     	//if the edge is calculated completely wrong set to the default value
     	if (this.edge < 85) {
-    		this.edge = -1;
+    		this.removeEdge();
     	}
     	/*
     	File tempSpecFile = new File("C:\\Users\\mgbri\\Desktop\\temp_ref_spec.ref");
@@ -565,10 +565,12 @@ public class Spectra {
 		//for calculating RN1-3
 		int result = 0;
 		if(up<=low) {
+			System.out.println("Lower: " + low + " and Upper: " + up);
 			JOptionPane.showMessageDialog(null, "Lower noise threshold is higher than the window threshold. Please adjust them in the evaluation settings.", "Error creating .ext file", JOptionPane.INFORMATION_MESSAGE);
 			return -1;
 		}
 		if(low<0 || up<0) {
+			System.out.println("Lower: " + low + " and Upper: " + up);
 			JOptionPane.showMessageDialog(null, "Lower noise threshold and window threshold are negative. Please adjust them in the evaluation settings.", "Error creating .ext file", JOptionPane.INFORMATION_MESSAGE);
 			return -1;
 		}

@@ -51,6 +51,7 @@ public class EvalIniDialog extends JDialog {
 	private JTextField tfFiller;
 	private JCheckBox chckbxfillup;
 	private JLabel tfIniFilePath;
+	private JTextField tfFluxthreshold;
 
 	/**
 	 * Launch the application.
@@ -282,7 +283,7 @@ public class EvalIniDialog extends JDialog {
 			public void actionPerformed(ActionEvent arg0) {
 				
 				//Create a file chooser
-		        final JFileChooser fileDialog = new JFileChooser();
+		        final JFileChooser fileDialog = new JFileChooser("C:\\Users\\mgbri\\Desktop\\Ini Files");
 		        
 		        //name of the filechooser window
 		        fileDialog.setDialogTitle("Choose ini file (.ini):");
@@ -374,6 +375,16 @@ public class EvalIniDialog extends JDialog {
 		tfactivityFileFolder.setText(ini.activityFileFolder);
 		contentPanel.add(tfactivityFileFolder);
 		
+		JLabel lblFluxthreshold = new JLabel("Fluxthreshold:");
+		lblFluxthreshold.setBounds(249, 11, 113, 14);
+		contentPanel.add(lblFluxthreshold);
+		
+		tfFluxthreshold = new JTextField();
+		tfFluxthreshold.setBounds(372, 8, 86, 20);
+		contentPanel.add(tfFluxthreshold);
+		tfFluxthreshold.setColumns(10);
+		tfFluxthreshold.setText(Double.toString(ini.fluxthreshold));
+		
 		{
 			JPanel buttonPane = new JPanel();
 			buttonPane.setLayout(new FlowLayout(FlowLayout.RIGHT));
@@ -385,7 +396,7 @@ public class EvalIniDialog extends JDialog {
 						//Save Evaluation Settings and close Dialog
 						try {
 							ini.overwriteIniFile(ini._pathToIniFile, tfMonitorID, tfNoiseThreshold, tfWindowThreshold, tfLowerFitThreshold, tfUpperFitThreshold, tfLowerFlagThreshold, 
-									tfUpperFlagThreshold, tfFluxslope, tfFluxoffset, tfSolidangle, tfDisequilibriumfactor, tfHoentzsch, tfInterval, tfEdgeoffset, tfIPAdress, tfFluxchannel, tfFiller, chckbxfillup,
+									tfUpperFlagThreshold, tfFluxslope, tfFluxoffset, tfFluxthreshold, tfSolidangle, tfDisequilibriumfactor, tfHoentzsch, tfInterval, tfEdgeoffset, tfIPAdress, tfFluxchannel, tfFiller, chckbxfillup,
 									tfRawDataPath, tfAtomaticDataPath, tfBrowsedDataPath, tfextractFileFolder, tfactivityFileFolder
 									);
 							dispose();

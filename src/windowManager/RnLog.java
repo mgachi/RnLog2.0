@@ -1157,7 +1157,7 @@ public class RnLog extends JFrame
 			        		System.out.println("new Array of extLines " + extlines.get(i));
 			        	}
 				        	else if((actual - last) < 60000 ) {
-				        		//if (Datetime_last - Datetime_current) < 600s
+				        		//if (Datetime_last - Datetime_current) < 60s
 				        		flag[i] = 2; //remove this
 				        		System.out.println("remove " + (actual - last));
 				        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
@@ -1493,7 +1493,7 @@ public class RnLog extends JFrame
 				        		System.out.println("new Array of extLines " + extlines.get(i));
 				        	}
 					        	else if((actual - last) < 60000 ) {
-					        		//if (Datetime_last - Datetime_current) < 600s
+					        		//if (Datetime_last - Datetime_current) < 60s
 					        		flag[i] = 2; //remove this
 					        		System.out.println("remove " + (actual - last));
 					        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
@@ -1987,7 +1987,7 @@ public class RnLog extends JFrame
 		if (lvl2Dir.exists()) {
 			System.out.println(lvl2Dir + " exists");
 		} else {
-			boolean folderCreated = lvl2Dir.mkdir();
+			boolean folderCreated = lvl2Dir.mkdirs();
 			if (folderCreated) {
 				System.out.println(lvl2Dir + " was successfully created");
 			} else {
@@ -2012,25 +2012,26 @@ public class RnLog extends JFrame
 			        	isLoadingFilesDone = false;
 			            int progress;
 			            File lvl0Dir = new File(ini.lvl0);
-			            for (int i = 0; i < lvl0Dir.listFiles().length; i++) {
+			            File[] filesInFolder = lvl0Dir.listFiles();
+			            for (int i = 0; i < filesInFolder.length; i++) {
 			            	if (isLoadingFilesDone) {
 			            		break;
 			            	}
 							//check if the file is a spectra
-							if (lvl0Dir.listFiles()[i].isFile() && checkFilename(lvl0Dir.listFiles()[i].getName())) {
-								tempFileList.add(lvl0Dir.listFiles()[i]);
+							if (filesInFolder[i].isFile() && checkFilename(filesInFolder[i].getName())) {
+								tempFileList.add(filesInFolder[i]);
 							}
 							
 							//calculating remaining progress and sending it to GUI
-							progress = (int) ((((double) i+1.0)/(lvl0Dir.listFiles().length))*100.0);
+							progress = (int) ((((double) i+1.0)/(filesInFolder.length))*100.0);
 							System.out.println(progress);
 							setProgress(progress);
 							
 							//search for reference spectrum
-							if (lvl0Dir.listFiles()[i].isFile() && lvl0Dir.listFiles()[i].getName().contains("temp_ref_spec.ref")) {
+							if (filesInFolder[i].isFile() && filesInFolder[i].getName().contains("temp_ref_spec.ref")) {
 								try {
-									System.out.println("Reference spectrum found: " + lvl0Dir.listFiles()[i] + lvl0Dir.listFiles()[i].getName());
-									RefSpec = new Spectra(lvl0Dir.listFiles()[i].getName(), lvl0Dir.listFiles()[i]);
+									System.out.println("Reference spectrum found: " + filesInFolder[i] + filesInFolder[i].getName());
+									RefSpec = new Spectra(filesInFolder[i].getName(), filesInFolder[i]);
 								} catch (Exception e) {
 									System.out.println("could not load reference spectrum");
 									JOptionPane.showMessageDialog(null, "The reference spectrum found in the lvl0 directory is brocken. Please provide a valid one." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
@@ -2082,8 +2083,8 @@ public class RnLog extends JFrame
 			}
 			
 			//creating directories for the extract and activity files
-			new File(ini.extractFileFolder).mkdir();
-			new File(ini.activityFileFolder).mkdir();
+			new File(ini.extractFileFolder).mkdirs();
+			new File(ini.activityFileFolder).mkdirs();
 			
 			//name convention for extract and activity files
 			String prefixExtract = lvl0Dir.getName();
@@ -2133,12 +2134,29 @@ public class RnLog extends JFrame
     			//select spectra
     			for(int i=0; i< rawFiles.size(); i++) {
     				try {
-    					spectraList.add(new Spectra(rawFiles.get(i).getName(), rawFiles.get(i)));
+    					//loading spectrum
+    					Spectra tempSectra = new Spectra(rawFiles.get(i).getName(), rawFiles.get(i));	
+    						
+						if (tempSectra.ADC1 < ini.fluxthreshold) {
+							//skipping this spectrum
+							continue;
+						}						
+    					
+    					spectraList.add(tempSectra);
     				} catch (Exception e) {
     					System.out.print(rawFiles.get(i).getName() + " is broken");
     					e.printStackTrace();
     				}
     			}   
+    			
+    			//return if all files have low flow
+    			if (spectraList.size() == 0) {    				
+    				JOptionPane.showMessageDialog(null, "No suitable spectra for the reference were found." , "Reference spectrum", JOptionPane.ERROR_MESSAGE);
+        			progressBar.setString("");
+        			progressBar.setValue(0);
+        			return;    				
+    			}
+    			
     			
     			System.out.println("spectra chosen");
 				try {
@@ -2342,6 +2360,33 @@ public class RnLog extends JFrame
 						progress = (int) ((((double) i+1.0)/(spectraList.size()))*100.0);
 						setProgress(progress);
 			        	
+						System.out.println("Flux is: " + spectraList.get(i).ADC1);
+						//checking if the flux is higher than the fluxthreshold
+						if (spectraList.get(i).ADC1 < ini.fluxthreshold) {
+							
+							//moving  Spectra to the new lowFlux subfolder
+			        		new File(spectraList.get(i).path.getParent()+ "\\lowFlux").mkdirs();
+			        		
+			        		        			
+			        		File lowFlux = new File(spectraList.get(i).path.getParent()+ "\\lowFlux\\" + spectraList.get(i).name);
+			        		try {
+								copyFile(spectraList.get(i).path, lowFlux);
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+			        		System.out.println("copied " + spectraList.get(i).path.getPath() + " to " + lowFlux.getPath() );
+			        		
+			        		//deleting file from the lvl2 directory if flagged
+			        		File file = new File(spectraList.get(i).path.getPath());
+		        		    file.delete();
+		        		    System.out.println("Flux is too low:" + spectraList.get(i).ADC1 + " Spectrum is removed successfully");		        		    
+		        		    spectraList.remove(i);
+		        		    //moving counter back to the current spectrum
+		        		    i--;
+		        		    continue;
+						}						
+						
 			        	//set edge of spectrum according to reference (if no edge is set yet)
 			        	try {
 							spectraList.get(i).calcEdge(RefSpec, ini.thres3, ini.thres4, ini.Edgeoffset);
@@ -2399,6 +2444,7 @@ public class RnLog extends JFrame
 		    }
 	        
 	      //removing flagged spectra from the spectra list
+		    System.out.println(flaggedIdx.size() + "size of theflagged");
     		for (int i = flaggedIdx.size() - 1; i >= 0; i--) {
     			spectraList.remove(flaggedIdx.get(i).intValue());
     			System.out.println("removing flagged spectrum at index " + flaggedIdx.get(i));
@@ -2485,7 +2531,7 @@ public class RnLog extends JFrame
 			
 			//writing the extract file
 			ArrayList<String> extlines = new ArrayList<String>();
-			for (int i=0; i<spectraList.size(); i++) {
+			for (int i=0; i<spectraList.size(); i++) {				
 				extlines.add(spectraList.get(i).datetime + "; " +
 				        spectraList.get(i).LT + "; " +
 				        spectraList.get(i).ADC1 + "; "+
@@ -2608,13 +2654,13 @@ public class RnLog extends JFrame
         //split extlines to get rid of duplicates or  missing values
         ArrayList<ArrayList<String>> splittedExtlines = new ArrayList<ArrayList<String>>();
         ArrayList<ArrayList<String>> splittedActlines = new ArrayList<ArrayList<String>>();
-        ArrayList<String> tmpList = new ArrayList<String>();
+        ArrayList<String> tmpStringList = new ArrayList<String>();
 
         //save positions where to split
         // 0-> dont split; 1-> split; 2-> delete 
         int[] flag = new int[extlines.size()];
         flag[1] = 0;
-        tmpList.add(extlines.get(0));
+        tmpStringList.add(extlines.get(0));
         int j = 0;
         
         
@@ -2626,13 +2672,13 @@ public class RnLog extends JFrame
         		//if (Datetime_last - Datetime_current) > 1800s
         		flag[i] = 1; //split here
         		System.out.println("split " + (actual - last));
-        		splittedExtlines.add((ArrayList<String>) tmpList.clone());
-        		tmpList.clear();
+        		splittedExtlines.add((ArrayList<String>) tmpStringList.clone());
+        		tmpStringList.clear();
         		j++;
-        		tmpList.add(extlines.get(i));
+        		tmpStringList.add(extlines.get(i));
         		System.out.println("new Array of extLines " + extlines.get(i));
         	}
-	        	else if((actual - last) < 6000 ) {
+	        	else if((actual - last) < 60000 ) {
 	        		//if (Datetime_last - Datetime_current) < 60s
 	        		flag[i] = 2; //remove this
 	        		System.out.println("remove " + (actual - last));
@@ -2641,23 +2687,25 @@ public class RnLog extends JFrame
 	        	}
 	        	else {
 	        		flag[i] = 0;
-		        	tmpList.add(extlines.get(i));
+	        		tmpStringList.add(extlines.get(i));
 	        		System.out.println("add " + extlines.get(i));
 	        	}		        	
         }
         
-        splittedExtlines.add((ArrayList<String>) tmpList.clone());
-		tmpList.clear();
+        splittedExtlines.add((ArrayList<String>) tmpStringList.clone());
+        tmpStringList.clear();
 		
         //calculating the values with Stockburger
         System.out.println("Calculating Stockburger");
         for(int x = 0; x < splittedExtlines.size(); x++) {	 
-        	tmpList = (ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone();
-        	if (tmpList.get(0) == "") {
+        	tmpStringList = (ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone();
+        	if (tmpStringList.get(0) == "") {
         		continue;
         	}
-        	splittedActlines.add(tmpList);
+        	splittedActlines.add(tmpStringList);
         }
+        
+        tmpStringList.clear();
         
         //gather, fuse and fill if variable "fill"  == true
         Boolean fill = false;
@@ -2706,6 +2754,7 @@ public class RnLog extends JFrame
     	//clear the flagged arrays for the next iteration
 		flaggedIdx.clear();
 		flagged.clear();
+		tmpList.clear();
 		flag = null;
 		
     	
