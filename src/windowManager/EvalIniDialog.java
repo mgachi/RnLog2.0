@@ -282,17 +282,14 @@ public class EvalIniDialog extends JDialog {
 		btnBrowse.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				
-				//Create a file chooser
+				//home use
 		        final JFileChooser fileDialog = new JFileChooser("C:\\Users\\mgbri\\Desktop\\Ini Files");
-		        
+				//Create a file chooser
+		        //final JFileChooser fileDialog = new JFileChooser();
 		        //name of the filechooser window
 		        fileDialog.setDialogTitle("Choose ini file (.ini):");
 		        //only show not hidden files
-		        fileDialog.setFileHidingEnabled(true);
-		        
-		        //TODO: home directory als start ausw#hlen
-		        //fileDialog.setCurrentDirectory(System.getProperty("user.dir"));
-		        
+		        fileDialog.setFileHidingEnabled(true);		        
 		       
 		        //to select single file
 		        fileDialog.setMultiSelectionEnabled(false);

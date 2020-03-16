@@ -788,8 +788,9 @@ public class RnLog extends JFrame
 		        if(e.getKeyCode() == KeyEvent.VK_RIGHT && e.getID() == KeyEvent.KEY_PRESSED) {
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx).changeEdge(chartPanel, chart, true));
-					} catch (IOException e1) {
+					} catch (Exception e1) {
 						// TODO Auto-generated catch block
+						System.out.println("selectedSpecIdx  " + selectedSpecIdx);
 						e1.printStackTrace();
 					}
 		        }
@@ -798,8 +799,9 @@ public class RnLog extends JFrame
 		        if(e.getKeyCode() == KeyEvent.VK_LEFT && e.getID() == KeyEvent.KEY_PRESSED) {
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx).changeEdge(chartPanel, chart, false));
-					} catch (IOException e1) {
+					} catch (Exception e1) {
 						// TODO Auto-generated catch block
+						System.out.println("selectedSpecIdx  " + selectedSpecIdx);
 						e1.printStackTrace();
 					}
 		        }
@@ -1262,9 +1264,8 @@ public class RnLog extends JFrame
 				        ArrayList<String> extlines = new ArrayList<String>();
 			            if (extFiles != null && extFiles.length > 0){
 			            	for (int x = 0; x < extFiles.length; x++) { 
-			            			            		
-			            		FileReader fileReader;
-			    				fileReader = new FileReader(extFiles[x]);
+			            	
+			    				FileReader fileReader = new FileReader(extFiles[x]);
 			    		        BufferedReader bufferedReader = new BufferedReader(fileReader);	    		        
 			    		        String line = null;
 			    		        //skipping first (header) line
@@ -1335,7 +1336,8 @@ public class RnLog extends JFrame
 					            JOptionPane.getRootFrame().dispose();  
 					        }
 					    }	
-						
+						//starting the progress bar
+			            progressBar.setString("Sorting extract file... [" + 0 + "%]");
 						//calling new thread via SwingWorker to simultaneously change GUI and do loading
 			            SortingExtractFile sortingTask = new SortingExtractFile();
 			            sortingTask.addPropertyChangeListener(new PropertyChangeListener() {
@@ -1369,6 +1371,10 @@ public class RnLog extends JFrame
 					    	return;
 					    }
 				        
+					    //resetting progressBar
+					    progressBar.setValue(0);
+				    	progressBar.setString("");
+					    
 				        int dialogButton = JOptionPane.YES_NO_OPTION;
 			        	int dialogResult = JOptionPane.showConfirmDialog (null, "Would you like to save combined and sorted Log file?" ,"Save new Log file?", dialogButton);
 			        	if(dialogResult == JOptionPane.YES_OPTION){
@@ -1478,24 +1484,25 @@ public class RnLog extends JFrame
 				        tmpList.add(extlines.get(1));
 				        int j = 0;
 				        
-				        for (int i = 2; i< extlines.size(); i++) {
+				        for (int i = 1; i< extlines.size(); i++) {
 				        	
 				        	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
 				        	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
-				        	if((actual - last) > 1800000 ) {
+				        	long difference = actual - last;
+				        	if(difference > 1800000 ) {
 				        		//if (Datetime_last - Datetime_current) > 1800s
 				        		flag[i] = 1; //split here
-				        		System.out.println("split " + (actual - last));
+				        		System.out.println("split " + difference);
 				        		splittedExtlines.add((ArrayList<String>) tmpList.clone());
 				        		tmpList.clear();
 				        		j++;
 				        		tmpList.add(extlines.get(i));
 				        		System.out.println("new Array of extLines " + extlines.get(i));
 				        	}
-					        	else if((actual - last) < 60000 ) {
+					        	else if(difference < 60000 ) {
 					        		//if (Datetime_last - Datetime_current) < 60s
 					        		flag[i] = 2; //remove this
-					        		System.out.println("remove " + (actual - last));
+					        		System.out.println("remove " + difference);
 					        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
 					        		continue;
 					        	}
@@ -1715,6 +1722,8 @@ public class RnLog extends JFrame
                		}
                 }
             }
+            //setting index to zero
+            selectedSpecIdx = 0;
             //showing the first spectrum of the selection
         	tfEdge.setText(spectraList.get(0).showSpectra(chartPanel));
          } else if (option == JFileChooser.CANCEL_OPTION){
@@ -1919,19 +1928,19 @@ public class RnLog extends JFrame
 		//extracting the time information from the first entry in the line
         Date first = formatter.parse(DT1.split(";")[0]);
         Date last = formatter.parse(DT2.split(";")[0]);
-        long diff = last.getTime() - first.getTime();
+        long diff = last.getTime() - first.getTime();        
         
         //failsafe for the time difference
 		if (diff < 1800000) {
 			return results;
 		}
 		//number of entries to fill
-		int fillingpoints = 0;
-		fillingpoints = (int) (diff/1800000);
+		int fillingpoints = (int) (diff/1800000);
+		//beginning of the filling
+		long firstTimeStamp = first.getTime();
 		for(int i = 1; i<fillingpoints; i++) {
-			Date newDate = new Date(first.getTime() + 1800000*i);
-			results.add(formatter.format(newDate));
-			 System.out.println("fill this :" + formatter.format(newDate));
+			// i have to be casted to long type to avoid exceeding the integer range
+			results.add((String) formatter.format(new Date(firstTimeStamp + 1800000* (long) i)));
 		}
 		return results;
 	}
@@ -2152,6 +2161,8 @@ public class RnLog extends JFrame
     			//return if all files have low flow
     			if (spectraList.size() == 0) {    				
     				JOptionPane.showMessageDialog(null, "No suitable spectra for the reference were found." , "Reference spectrum", JOptionPane.ERROR_MESSAGE);
+    				//purge data for the next run
+    				tempFileList.clear();
         			progressBar.setString("");
         			progressBar.setValue(0);
         			return;    				
@@ -2163,6 +2174,8 @@ public class RnLog extends JFrame
 					RefSpec = new Spectra(spectraList, ini);
 					spectraList.clear();
 					spectraList.add(RefSpec);
+					//setting index to zero
+		            selectedSpecIdx = 0;
 					tfEdge.setText(RefSpec.showSpectra(chartPanel));
 					btnWaitRefSpectrum.setVisible(true);
 					return;
@@ -2577,35 +2590,29 @@ public class RnLog extends JFrame
 			
 			//sorting entries in the final extract file by the measurement time
             DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
-            int minIndex;
-	        for (int i = 0; i<extlines.size()-1; i++) {
-	        	String minTimeExtLine = extlines.get(i);
-	        	minIndex = i;
-	        	for (int j = i+1; j< extlines.size(); j++) {
-		        	long currentMin;
-		        	long currentLine;
-					try {
-						currentMin = formatter.parse(minTimeExtLine.split(";")[0]).getTime();
-						currentLine =  formatter.parse(extlines.get(j).split(";")[0]).getTime();
-						if(currentMin > currentLine) {
-			        		minTimeExtLine = extlines.get(j);
-			        		minIndex = j;
-			        	}
-					} catch (ParseException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-		        }
-	        	
-	        	//changing places of current i element with the minimum of the remaining
-	        	extlines.set(minIndex, extlines.get(i));
-	        	extlines.set(i, minTimeExtLine);
-	        }
+            for (int i = 0; i<extlines.size()-1; i++) { 
+	            String current = extlines.get(i);
+	            double currentTime;
+				try {
+					currentTime = formatter.parse(current.split(";")[0]).getTime();
+					int j = i - 1;
+	                while(j >= 0 &&  currentTime < formatter.parse(extlines.get(j).split(";")[0]).getTime()) {
+	                	extlines.set(j+1,extlines.get(j));
+	                    j--;
+	                }
+	                // at this point we've exited, so j is either -1
+	                // or it's at the first element where current >= a[j]
+	                extlines.set(j+1, current);
+				} catch (ParseException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}	
+            }
 			
 		    fileOut = new FileOutputStream(extract, true);
 			//--------------------------------------^^^^ means append new line, don't override old data
 			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
-			for (int i=0; i<spectraList.size(); i++) {
+			for (int i=0; i<extlines.size(); i++) {
 				bw.write(extlines.get(i));				
 			}
 			bw.close();
@@ -2630,7 +2637,6 @@ public class RnLog extends JFrame
     String actFilename = activity.getName();
 	String points = "1";	
     //open ext and act file
-	FileReader fileReader;
 	File actFile =activity;
 	try {
         //open act File
@@ -2678,7 +2684,8 @@ public class RnLog extends JFrame
         		tmpStringList.add(extlines.get(i));
         		System.out.println("new Array of extLines " + extlines.get(i));
         	}
-	        	else if((actual - last) < 60000 ) {
+        	
+	        	else if((actual - last) < 6000 ) {
 	        		//if (Datetime_last - Datetime_current) < 60s
 	        		flag[i] = 2; //remove this
 	        		System.out.println("remove " + (actual - last));
@@ -2702,9 +2709,9 @@ public class RnLog extends JFrame
         	if (tmpStringList.get(0) == "") {
         		continue;
         	}
-        	splittedActlines.add(tmpStringList);
+        	
+        	splittedActlines.add((ArrayList<String>) tmpStringList.clone());
         }
-        
         tmpStringList.clear();
         
         //gather, fuse and fill if variable "fill"  == true
@@ -2712,7 +2719,6 @@ public class RnLog extends JFrame
         if(ini.fill == 1) fill = true;
         if(!fill || splittedActlines.size() == 1) {
         	System.out.println("Don't need to fill up");
-        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
         	//just write the results into the file if no filler is given or only one block was created
 	        for(int i=0; i<splittedActlines.size(); i++) {
 	        	for(int k = 0; k < splittedActlines.get(i).size() ; k++) {
@@ -2726,7 +2732,7 @@ public class RnLog extends JFrame
         	System.out.println("splittedActlines.size() is " + splittedActlines.size());
         	for(int i = 0; i < splittedActlines.size() ; i++) {
         		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
-        			System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
+        			//System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
         			bw1.write(splittedActlines.get(i).get(k) + "\r\n");
         		}
         		try {
@@ -2745,6 +2751,7 @@ public class RnLog extends JFrame
         		
         	}
         }
+        System.out.println("splittedActlines.size() is " + splittedActlines.size());
         bw1.close();
     	btnContinue.setVisible(false);
     	JOptionPane.showMessageDialog(null, "Successfully created " + activity.getName() , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
