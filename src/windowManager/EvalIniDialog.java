@@ -283,7 +283,7 @@ public class EvalIniDialog extends JDialog {
 			public void actionPerformed(ActionEvent arg0) {
 				
 				//home use
-		        final JFileChooser fileDialog = new JFileChooser("C:\\Users\\mgbri\\Desktop\\Ini Files");
+		        final JFileChooser fileDialog = new JFileChooser("C:\\Users\\Max\\Desktop\\zu Auswerten\\Ini Files\\");
 				//Create a file chooser
 		        //final JFileChooser fileDialog = new JFileChooser();
 		        //name of the filechooser window

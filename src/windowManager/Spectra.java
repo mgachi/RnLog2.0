@@ -493,7 +493,7 @@ public class Spectra {
     	return this.showSpectra(chartPanel);
     }
 
-	private void setEdge(int _edge) throws IOException {
+	public void setEdge(int _edge) throws IOException {
 		System.out.println("setting Edge");  
     	this.removeEdge();
 		edge = _edge;

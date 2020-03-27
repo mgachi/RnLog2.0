@@ -78,7 +78,7 @@ import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JTable;
 import javax.swing.event.ChangeListener;
-import javax.xml.ws.Service;
+//import javax.xml.ws.Service;
 import javax.swing.event.ChangeEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -2362,7 +2362,7 @@ public class RnLog extends JFrame
 		        	//initialize task properties
 		        	isSettingFilesDone = false;
 		            int progress;
-		            
+		            int refSpecEdge = RefSpec.edge;
 		    		//loop though the selected spectra, see if they need to be flagged	       
 			        for(int i=0; i<spectraList.size(); i++) {
 			        	if (isSettingFilesDone) {
@@ -2412,6 +2412,13 @@ public class RnLog extends JFrame
 			        	if(spectraList.get(i).edge > ini.Edgeoffset+ini.UpperFlagThres || spectraList.get(i).edge < ini.Edgeoffset-ini.LowerFlagThres) {
 			        		//for continue evaluation: remember these spectra and ask user to set edge manually
 			        		
+			        		//setting edge to the value of the refSpec
+			        		try {
+								spectraList.get(i).setEdge(refSpecEdge);
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
 			        		//add actual spectrum to list
 			        		flagged.add(spectraList.get(i));  
 			        		//add index of the flagged file to array
