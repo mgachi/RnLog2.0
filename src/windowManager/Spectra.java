@@ -33,7 +33,7 @@ public class Spectra {
 	public File path;
 	public String datetime;
 	public String monitor;
-	public String LT;
+	public int LT;
 	public int[] values = new int[128];
 	public int edge=-1;
 	public double ADC1; public double ADC1StD; public double ADC2; public double ADC2StD; public double ADC3; public double ADC3StD;
@@ -43,7 +43,9 @@ public class Spectra {
 	//bottom of the file
 	public double fluxslope;public double fluxoffset;public double ADC2Slope;public double ADC2Offset;public double ADC3Slope;public double ADC3Offset;public double Temp1Slope;public double Temp1Offset;
 	public double Temp2Slope;public double Temp2Offset;public double Temp3Slope;public double Temp3Offset;public double Counter1Slope;public double Counter1Offset;public double Counter2Slope;public double Counter2Offset;
-
+	
+	public int linesCount;
+	
     public Spectra(String _name, File _path) throws Exception  {
     	path = _path;
     	name = _name;
@@ -56,20 +58,22 @@ public class Spectra {
 	        String line = null;
 	        while ((line = bufferedReader.readLine()) != null) {
 	            lines.add(line);
-	        }
-	        boolean isReference = false;
+	        }	        
+	        bufferedReader.close();
+	        
 	        //check if its a reference spectrum
+	        boolean isReference = false;	       
 	        if(lines.get(0).contains("temporary reference spectrum")) {
 	        	System.out.println("loading temporary reference spectrum");
 	        	isReference = true;
 	        	lines.remove(0);
 	        }
 	        
-	        bufferedReader.close();
+	        //assigning the parameters
 	        monitor = lines.get(131);
-	        LT = lines.get(2);
+	        String LTline = lines.get(2);
 	        //get only the LT as a number (split after first space)
-	        LT= LT.substring(0, LT.indexOf(" "));
+	        LT= Integer.parseInt(LTline.substring(0, LTline.indexOf(" ")));
 	        datetime = lines.get(0);
 	        if(lines.size()==136) {
 	        	edge = Integer.parseInt(lines.get(135));
@@ -114,14 +118,30 @@ public class Spectra {
 		        Counter1Offset=Double.parseDouble(lines.get(134).split(";")[1]);
 		        Counter2Slope=Double.parseDouble(lines.get(134).split(";")[2]);
 		        Counter2Offset=Double.parseDouble(lines.get(134).split(";")[3]);
+	        } else {
+	        	if(lines.size()==135) {
+		        	edge = Integer.parseInt(lines.get(134));
+		        }
 	        }
 	        System.out.println("Read in " + name + " from " + path);
+	        //line counts to determine if the spectre is broken
+	        linesCount = lines.size();
 		} catch (IOException e) {
 	        System.out.println("Could not read in Spectra"); 
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (Exception e) {
-			//e.g. out pof bounds -> broken spectrum?
+			//e.g. out pof bounds -> broken or empty spectrum
+			//read file once again to distinguish between broken and empty spectrum
+			fileReader = new FileReader(path);
+	        BufferedReader bufferedReader = new BufferedReader(fileReader);
+	        List<String> lines = new ArrayList<String>();
+	        String line = null;
+	        while ((line = bufferedReader.readLine()) != null) {
+	            lines.add(line);
+	        }	        
+	        bufferedReader.close();
+			linesCount = lines.size();
+	        
 			System.out.println("Broken Spectrum");
 			e.printStackTrace();
 		}
@@ -274,7 +294,7 @@ public class Spectra {
     //constructor for live spectrum
     public Spectra(String[] specLines) {
     	//gets a String array containing the lines of the spectra
-        LT = "0";
+        LT = 0;
         monitor = specLines[130];
         //fill values
         for(int i=1; i<131; i++) {
@@ -317,12 +337,12 @@ public class Spectra {
         Counter2Offset=0.0;
     }
     
-    //constructor for temporary reference spectrum
+    //constructor for temporary reference spectrum, saved in lvl0 folder
     public Spectra(ArrayList<Spectra> _spectraList, iniFile ini) throws IOException {
     	System.out.println("create temporary reference spectrum");
     	name = "temp_ref_spec.ref";
     	//get ParentFile (directory) of first Spectra in List
-    	path = new File(_spectraList.get(0).path.getParent()+ "\\temp_ref_spec.ref");
+    	path = new File(ini.lvl0+ "\\temp_ref_spec.ref");
     	FileOutputStream fos = new FileOutputStream(path);
     	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
     	System.out.println("Created temporary reference Spectrum at :" + path);
@@ -346,8 +366,7 @@ public class Spectra {
     			T3 + ";" + T3StD + ";" +
     			counter1 + ";" + counter2+  ";\r\n"
     			);
-    	LT = _spectraList.get(0).LT;
-    	bw.write(LT +" LT\r\n");
+    	bw.write("1 LT\r\n");
     	RNIntegral = 0;
     	//write the values as sums of all Spectra in the list
     	System.out.println("write added values");
@@ -364,30 +383,61 @@ public class Spectra {
     	bw.write("- \r\n- \r\n- \r\n");
     	bw.close();
     	
-    	//calculating the edge of the refSpec using the hard coded spectrum
-    	Spectra hardCoded = new Spectra();
-    	this.calcEdge(hardCoded, ini.thres3, ini.thres4, ini.Edgeoffset);
-    	//if the edge is calculated completely wrong set to the default value
-    	if (this.edge < 85) {
-    		this.removeEdge();
+    	//setting edge of the refSpec to the value in the ini File
+    	this.setEdge(ini.Edgeoffset);
+	}
+    
+  //constructor for temporary reference spectrum with given path
+    public Spectra(ArrayList<Spectra> _spectraList, iniFile ini, String savePath) throws IOException {
+    	System.out.println("create temporary reference spectrum");
+    	//creating Ref Spectrum in the given path
+    	path = new File(savePath);
+    	FileOutputStream fos = new FileOutputStream(path);
+    	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
+    	System.out.println("Created temporary reference Spectrum at :" + path);
+    	name = "temporary reference spectrum";
+    	bw.write(name + "\r\n");
+    	datetime = _spectraList.get(0).datetime;
+    	bw.write(datetime + "\r\n");
+    	ADC1 = _spectraList.get(0).ADC1;			ADC1StD = _spectraList.get(0).ADC1StD;
+		ADC2 = _spectraList.get(0).ADC2; 			ADC2StD = _spectraList.get(0).ADC2StD;
+		ADC2 = _spectraList.get(0).ADC3; 			ADC3StD = _spectraList.get(0).ADC3StD;
+		T1 = _spectraList.get(0).T1; 				T1StD = _spectraList.get(0).T1StD;
+		T2 = _spectraList.get(0).T2; 				T2StD = _spectraList.get(0).T2StD;
+		T3 = _spectraList.get(0).T3; 				T3StD = _spectraList.get(0).T3StD;
+		counter1 = _spectraList.get(0).counter1; 	counter2 = _spectraList.get(0).counter2;
+    	bw.write(
+    			ADC1 + ";" + ADC1StD + ";" +
+    			ADC2 + ";" + ADC2StD + ";" +
+    			ADC3 + ";" + ADC3StD + ";" +
+    			T1 + ";" + T1StD + ";" +
+    			T2 + ";" + T2StD + ";" +
+    			T3 + ";" + T3StD + ";" +
+    			counter1 + ";" + counter2+  ";\r\n"
+    			);
+    	bw.write("1 LT\r\n");
+    	RNIntegral = 0;
+    	//write the values as sums of all Spectra in the list
+    	System.out.println("write added values");
+    	for(int j=0; j<128; j++) {
+    		//RNIntegral += _spectraList.get(j).RNIntegral;
+        	int tmp = 0;
+        	for(int i=0; i<_spectraList.size(); i++) {
+        		tmp += _spectraList.get(i).values[j];
+            }
+        	values[j]=tmp;
+        	bw.write(values[j] + "\r\n");
     	}
-    	/*
-    	File tempSpecFile = new File("C:\\Users\\mgbri\\Desktop\\temp_ref_spec.ref");
-    	Spectra tempRefSpec;
-		try {
-			tempRefSpec = new Spectra(tempSpecFile.getName(), tempSpecFile);
-			System.out.println(ini.thres3+ "    " + ini.thres4+ "    " +  ini.Edgeoffset);
-			this.calcEdge(tempRefSpec, ini.thres3, ini.thres4, ini.Edgeoffset);
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}    
-		*/	
+    	bw.write(_spectraList.get(0).monitor + "\r\n");
+    	bw.write("- \r\n- \r\n- \r\n");
+    	bw.close();
+    	
+    	//setting edge of the refSpec to the value in the ini File
+    	this.setEdge(ini.Edgeoffset);
 	}
 
 	@SuppressWarnings("deprecation")
 	public String showSpectra(ChartPanel chartPanel) {
-		System.out.println("showing " + this.name);
         XYSeries showSpectrum = new XYSeries("");
 		XYSeriesCollection counts = new XYSeriesCollection(showSpectrum);
         for(int i=1; i<= 128; i++) {
@@ -432,7 +482,6 @@ public class Spectra {
 		plot.addDomainMarker(edgeMarker);
 		XYItemRenderer renderer = plot.getRenderer();
 		Shape shape  = new Rectangle();
-		//TODO: show points on xyplot
 		renderer.setShape(shape);
         renderer.setBasePaint(Color.red);
 		System.out.println("Updated chart"); 
@@ -460,7 +509,6 @@ public class Spectra {
         FileOutputStream fileOut = new FileOutputStream(path);
         fileOut.write(inputStr.getBytes());
         fileOut.close();
-		System.out.println("removed Edge"); 
     }
     
     public String changeEdge(ChartPanel chartPanel, JFreeChart chart, boolean direction /*0 previous, 1 next*/) throws IOException {
@@ -487,14 +535,12 @@ public class Spectra {
     		}
     		edge--;
     	}
-		System.out.println("changing Edge"); 
     	this.setEdge(edge);
     	
     	return this.showSpectra(chartPanel);
     }
 
 	public void setEdge(int _edge) throws IOException {
-		System.out.println("setting Edge");  
     	this.removeEdge();
 		edge = _edge;
     	BufferedReader file = new BufferedReader(new FileReader(path));
@@ -509,7 +555,6 @@ public class Spectra {
         FileOutputStream fileOut = new FileOutputStream(path);
         fileOut.write(inputStr.getBytes());
         fileOut.close();
-		System.out.println("set Edge of " + this.name + " to " + edge); 
 	}
 	
 	public int kreuzProdukt(Spectra other, int shift) {

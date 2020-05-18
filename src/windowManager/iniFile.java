@@ -86,9 +86,7 @@ public class iniFile {
 	
 	public iniFile(File selectedIniFile) {
 		
-   		if(selectedIniFile.getName().endsWith(".ini")) {
-   			System.out.println("You have selected this ini file:\n" +selectedIniFile);
-   			} else {
+   		if(!selectedIniFile.getName().endsWith(".ini")) {
 		        JOptionPane.showMessageDialog(null, "You have to selected ini file (.ini)!", "Error loading ini file", JOptionPane.ERROR_MESSAGE);
    			return;
    			}
@@ -134,6 +132,15 @@ public class iniFile {
 
 	public void loadIniFile (File file) throws IOException {
 		//read .ini file line by line and take written values
+		
+		//checking file extension
+		if(file.getName().endsWith(".ini")) {
+   			System.out.println("You have selected this ini file:\n" +file);
+   			} else {
+		        JOptionPane.showMessageDialog(null, "You have to selected ini file (.ini)!", "Error loading ini file", JOptionPane.ERROR_MESSAGE);
+   			return;
+   			}
+		
 		FileReader fileReader;
 		fileReader = new FileReader(file);
         BufferedReader bufferedReader = new BufferedReader(fileReader);
