@@ -63,6 +63,9 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -86,8 +89,7 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.awt.Window.Type;
 
-public class RnLog extends JFrame 
-					implements PropertyChangeListener {
+public class RnLog extends JFrame{
 				
 	
 	private static final long serialVersionUID = 1L;
@@ -133,13 +135,18 @@ public class RnLog extends JFrame
 	
 	//load *.ini file
 	public iniFile ini = new iniFile();
-	//global temporary holder for the files
+	//global temporary holder for the files (need global for the SwingWorker)
 	public ArrayList<File> tempFileList = new ArrayList<File>();
+	//global holder for the files to evaluate (need global for the SwingWorker)
+	public ArrayList<File> toEvaluate = new ArrayList<File>();
 	//indicators of complicity for the SwingWorkers
 	public boolean isLoadingFilesDone;
 	public boolean isCopyingFilesDone;
 	public boolean isSettingFilesDone;
 	public boolean isSortingExtractFileDone;
+	//indicator of rerunning the continueEval part due to the creation of the ref spectrum
+	public boolean isRefSpecRun = false;
+	public ArrayList<Spectra> suitableSpectra = new ArrayList<Spectra>();
 	
 	//Launch the application.
 	public static void main(String[] args) {
@@ -789,8 +796,6 @@ public class RnLog extends JFrame
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx).changeEdge(chartPanel, chart, true));
 					} catch (Exception e1) {
-						// TODO Auto-generated catch block
-						System.out.println("selectedSpecIdx  " + selectedSpecIdx);
 						e1.printStackTrace();
 					}
 		        }
@@ -800,8 +805,6 @@ public class RnLog extends JFrame
 					try {
 						tfEdge.setText(spectraList.get(selectedSpecIdx).changeEdge(chartPanel, chart, false));
 					} catch (Exception e1) {
-						// TODO Auto-generated catch block
-						System.out.println("selectedSpecIdx  " + selectedSpecIdx);
 						e1.printStackTrace();
 					}
 		        }
@@ -836,7 +839,6 @@ public class RnLog extends JFrame
 					}
 					JOptionPane.showMessageDialog(null, "Reset " + spectraList.size() + " Spectra successfully", "Reset Spectra", JOptionPane.INFORMATION_MESSAGE);
 				} catch (IOException e1) {
-					// TODO Auto-generated catch block
 					JOptionPane.showMessageDialog(null, "Could not reset Spectra", "Reset Spectra", JOptionPane.INFORMATION_MESSAGE);
 					e1.printStackTrace();
 				}
@@ -861,7 +863,6 @@ public class RnLog extends JFrame
 					spectraList.add(RefSpec);
 					tfEdge.setText(RefSpec.showSpectra(chartPanel));
 				} catch (IOException e1) {
-					// TODO Auto-generated catch block
 					JOptionPane.showMessageDialog(null, "Could not create temporary reference specterum. Maybe you have no writing permissions?", "Create Reference Spectrum", JOptionPane.INFORMATION_MESSAGE);
 					e1.printStackTrace();
 				}
@@ -923,7 +924,6 @@ public class RnLog extends JFrame
 			            	//loading ref spectrum
 							RefSpec = new Spectra(fileDialog.getSelectedFile().getName(),fileDialog.getSelectedFile());
 						} catch (Exception e1) {
-							// TODO Auto-generated catch block
 							e1.printStackTrace();
 						}
 			        }
@@ -1022,10 +1022,8 @@ public class RnLog extends JFrame
 				        progressBar.setString("");
 				    	progressBar.setValue(0);
 					} catch (FileNotFoundException e1) {
-						// TODO Auto-generated catch block
 						e1.printStackTrace();
 					} catch (IOException e1) {
-						// TODO Auto-generated catch block
 						e1.printStackTrace();
 					}
 				} else {
@@ -1096,8 +1094,9 @@ public class RnLog extends JFrame
 					//read in extract file
 					fileReader = new FileReader(extFile);
 			        BufferedReader bufferedReader = new BufferedReader(fileReader);
+			        
+			        //information from single spectra, unprocessed
 			        ArrayList<String> extlines = new ArrayList<String>();
-			        ArrayList<String> actlines = new ArrayList<String>();
 			        String line = null;
 			        //Skipping first (header) line
 			        line = bufferedReader.readLine();
@@ -1114,9 +1113,6 @@ public class RnLog extends JFrame
 					fileOut = new FileOutputStream(actFile);
 			    	BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fileOut));
 			        bw.write("222-Radon activities calculated with " + SoftwareVersion + "\r\n"+ "\r\n");
-			        //DateTimeFormatter.ofPattern("d M y");
-			       // System.out.println(java.time.LocalDate.now().format());
-			        //TODO: das anpassen
 			        bw.write("Evaluated by: " + evaluator + " on "); 
 			        bw.write(java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))); 
 			        bw.write("\r\n");
@@ -1129,39 +1125,41 @@ public class RnLog extends JFrame
 			        bw.write("Flux Offset : " + String.valueOf(ini.fluxoffset) + "\r\n");
 			        bw.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
 			        bw.write("Format: \r\n");
-			        bw.write("Stoptime,Activity [Bq/m3], Ac[dps],Ac/dt,Total, Window, Edge, temp1[C], temp2[C], temp3[C], Pressure[mbar], LifeTime[sec], Flux[m3/s], ID \r\n");
+			        bw.write("Stoptime; Activity [Bq/m3]; Ac[dps]; Ac/dt; Total; Window; Edge; temp1[C]; temp2[C]; temp3[C]; Pressure[mbar]; LifeTime[sec]; Flux[m3/s]; ID \r\n");
 			      
 			        //split extlines to get rid of duplicates or  missing values
 			        ArrayList<ArrayList<String>> splittedExtlines = new ArrayList<ArrayList<String>>();
+			        //array for the activity values
 			        ArrayList<ArrayList<String>> splittedActlines = new ArrayList<ArrayList<String>>();
+			        //array to collect intermediate progress
 			        ArrayList<String> tmpList = new ArrayList<String>();
 
 			        //save positions where to split
 			        // 0-> dont split; 1-> split; 2-> delete 
 			        int[] flag = new int[extlines.size()];
 			        flag[1] = 0;
+			        //getting first line
 			        tmpList.add(extlines.get(0));
-			        int j = 0;
-			        DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
 			        
 			        for (int i = 1; i< extlines.size(); i++) {
 			        	
-			        	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
-			        	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
-			        	if((actual - last) > 1800000 ) {
-			        		//if (Datetime_last - Datetime_current) > 1800s
+			        	LocalDateTime current =  LocalDateTime.parse(extlines.get(i).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));
+			            LocalDateTime last = LocalDateTime.parse(extlines.get(i-1).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));
+			            long difference = Duration.between(last,current).toMinutes();
+			            
+			        	if(difference > 30 ) {
+			        		//if (Datetime_last - Datetime_current) > 30min
 			        		flag[i] = 1; //split here
-			        		System.out.println("split " + (actual - last));
+			        		System.out.println("split, diff is " + difference + " min");
 			        		splittedExtlines.add((ArrayList<String>) tmpList.clone());
 			        		tmpList.clear();
-			        		j++;
 			        		tmpList.add(extlines.get(i));
 			        		System.out.println("new Array of extLines " + extlines.get(i));
 			        	}
-				        	else if((actual - last) < 60000 ) {
-				        		//if (Datetime_last - Datetime_current) < 60s
+				        	else if(difference < 1 ) {
+				        		//if (Datetime_last - Datetime_current) < 1min
 				        		flag[i] = 2; //remove this
-				        		System.out.println("remove " + (actual - last));
+				        		System.out.println("remove " + difference);
 				        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
 				        		continue;
 				        	}
@@ -1182,7 +1180,7 @@ public class RnLog extends JFrame
 			        	tmpList = (ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone();
 			        	if (tmpList.get(0) == "") {
 			        		continue;
-		        	}
+			        		}
 		        	splittedActlines.add(tmpList);
 			        }
 			        
@@ -1203,7 +1201,7 @@ public class RnLog extends JFrame
 			        	System.out.println("Fill Up with " + ini.filler);
 			        	for(int i = 0; i < splittedActlines.size() ; i++) {
 			        		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
-				        		System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
+				        		//System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
 			        			bw.write(splittedActlines.get(i).get(k) + "\r\n");
 			        		}
 			        		try {
@@ -1283,9 +1281,7 @@ public class RnLog extends JFrame
 			            progressBar.setValue(0);
         	            progressBar.setString("Sorting extract file... [" + 0 + "%]");
 			            
-			            //sorting entries in the final extract file by the measurement time
-			            DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
-			            
+			            //sorting entries in the final extract file by the measurement time using insertion algorithm 
 			            //creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
 			            class SortingExtractFile extends SwingWorker<Void, Void> {
 					        
@@ -1310,21 +1306,13 @@ public class RnLog extends JFrame
 									setProgress(progress);
 					            	
 					                String current = extlines.get(i);
-					                double currentTime;
-									try {
-										currentTime = formatter.parse(current.split(";")[0]).getTime();
-										int j = i - 1;
-						                while(j >= 0 &&  currentTime < formatter.parse(extlines.get(j).split(";")[0]).getTime()) {
-						                	extlines.set(j+1,extlines.get(j));
-						                    j--;
-						                }
-						                // at this point we've exited, so j is either -1
-						                // or it's at the first element where current >= a[j]
-						                extlines.set(j+1, current);
-									} catch (ParseException e) {
-										// TODO Auto-generated catch block
-										e.printStackTrace();
-									}					                
+									LocalDateTime currentTime =  LocalDateTime.parse(current.split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));				
+									int j = i - 1;
+									while(j >= 0 &&  currentTime.isBefore(LocalDateTime.parse(extlines.get(j).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"))) ) {
+										extlines.set(j+1,extlines.get(j));
+									    j--;
+									}
+									extlines.set(j+1, current);					                
 					            }
 					            return null;
 					        }
@@ -1365,7 +1353,6 @@ public class RnLog extends JFrame
 					    	//stopping SwingWorker 
 					    	sortingTask.done();
 					    	Thread.sleep(150);
-					    	tempFileList.clear();
 					    	progressBar.setValue(0);
 					    	progressBar.setString("");
 					    	return;
@@ -1470,7 +1457,7 @@ public class RnLog extends JFrame
 				        bw.write("Flux Offset : " + String.valueOf(ini.fluxoffset) + "\r\n");
 				        bw.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
 				        bw.write("Format: \r\n");
-				        bw.write("Stoptime,Activity [Bq/m3], Ac[dps],Ac/dt,Total, Window, Edge, temp1[C], temp2[C], temp3[C], Pressure[mbar], LifeTime[sec], Flux[m3/s], ID \r\n");
+				        bw.write("Stoptime; Activity [Bq/m3]; Ac[dps]; Ac/dt; Total; Window; Edge; temp1[C]; temp2[C]; temp3[C]; Pressure[mbar]; LifeTime[sec]; Flux[m3/s]; ID \r\n");
 				      
 				        //split extlines to get rid of duplicates or  missing values
 				        ArrayList<ArrayList<String>> splittedExtlines = new ArrayList<ArrayList<String>>();
@@ -1482,25 +1469,24 @@ public class RnLog extends JFrame
 				        int[] flag = new int[extlines.size()];
 				        flag[1] = 0;
 				        tmpList.add(extlines.get(1));
-				        int j = 0;
 				        
 				        for (int i = 1; i< extlines.size(); i++) {
 				        	
-				        	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
-				        	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
-				        	long difference = actual - last;
-				        	if(difference > 1800000 ) {
-				        		//if (Datetime_last - Datetime_current) > 1800s
+				        	LocalDateTime current =  LocalDateTime.parse(extlines.get(i).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));
+				            LocalDateTime last = LocalDateTime.parse(extlines.get(i-1).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));
+				            long difference = Duration.between(last,current).toMinutes();
+				            
+				        	if(difference > 30 ) {
+				        		//if (Datetime_last - Datetime_current) > 30min
 				        		flag[i] = 1; //split here
-				        		System.out.println("split " + difference);
+				        		System.out.println("split, diff is " + difference + " min");
 				        		splittedExtlines.add((ArrayList<String>) tmpList.clone());
 				        		tmpList.clear();
-				        		j++;
 				        		tmpList.add(extlines.get(i));
 				        		System.out.println("new Array of extLines " + extlines.get(i));
 				        	}
-					        	else if(difference < 60000 ) {
-					        		//if (Datetime_last - Datetime_current) < 60s
+					        	else if(difference < 1 ) {
+					        		//if (Datetime_last - Datetime_current) < 1min
 					        		flag[i] = 2; //remove this
 					        		System.out.println("remove " + difference);
 					        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
@@ -1544,7 +1530,7 @@ public class RnLog extends JFrame
 				        	System.out.println("Fill Up with " + ini.filler);
 				        	for(int i = 0; i < splittedActlines.size() ; i++) {
 				        		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
-					        		System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
+					        		//System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
 				        			bw.write(splittedActlines.get(i).get(k) + "\r\n");
 				        		}
 				        		try {
@@ -1599,30 +1585,22 @@ public class RnLog extends JFrame
 			}
 		});
 		
+		//continue button for after manually flagging spectra
 		btnContinueFlagging.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
+				btnContinueFlagging.setVisible(false);
 				continueEvaluation2(btnContinueFlagging);
-				
-				
-				// get the next spectra where the edge needs to be set
-				/*
-				if(currentflaggedSpec==flagged.size() || flagged.isEmpty()) {
-					//continue the evaluation
-					continueEvaluation2(btnContinueFlagging);
-				}
-				flagged.get(currentflaggedSpec).showSpectra(chartPanel);
-				*/
 			}
 		});
 		
 		//trying to pause the continue method til user have selected edge for the ref spectrum
-				btnContinueRefSpectrum.addActionListener(new ActionListener() {
-					public void actionPerformed(ActionEvent arg0) {
-						btnContinueRefSpectrum.setVisible(false);
-						ini.saveNewEdgeoffsest(RefSpec.edge);
-						continueEvaluation(progressBar, chartPanel, panel, btnContinueFlagging, btnContinueRefSpectrum);
-					}
-				});
+		btnContinueRefSpectrum.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				btnContinueRefSpectrum.setVisible(false);
+				ini.saveNewEdgeoffsest(RefSpec.edge);
+				continueEvaluation(progressBar, chartPanel, panel, btnContinueFlagging, btnContinueRefSpectrum);
+			}
+		});
 		
 		//get the live data from the monitor
 		tglbtnLive.addActionListener(new ActionListener() {
@@ -1716,7 +1694,6 @@ public class RnLog extends JFrame
                			//add actual spectrum to list
                			spectraList.add(actualSpectrum);
                		} catch (Exception e) {
-               			// TODO Auto-generated catch block
                			System.out.println("Something went wrong, maybe the file is already opened?");
                			e.printStackTrace();
                		}
@@ -1752,6 +1729,7 @@ public class RnLog extends JFrame
 	
 		
 	public ArrayList<String> calcStockburger(ArrayList<String> extLines,  int points) {
+		//calculation of the activity using the Stockburger method
 		System.out.println("Calculating these lines : ");
 		for ( int i =0; i< extLines.size(); i++) {
 			System.out.println(extLines.get(i));
@@ -1759,7 +1737,7 @@ public class RnLog extends JFrame
 		
 		//load *.ini file
 		if (ini._pathToIniFile == null) {
-			iniFile ini = new iniFile();
+			ini = new iniFile();
 			} 
 		
 		long[] timeDiffs = new long[extLines.size()]; //LT, total, window, Po212, timeDifference, Ac
@@ -1912,7 +1890,7 @@ public class RnLog extends JFrame
 					+ t2s[i] + "; " + t3s[i] + "; " + pressures[i] + "; " + LTs[i] + "; " + formatter.format(fluxs[i]).replaceAll(",", ".") + "; " 
 				    +  extLines.get(i).split(";")[36] /*ID*/ ;
 			actlines.add(actline);
-			System.out.println("adding " + actline);
+			//System.out.println("adding " + actline);
 		}
 		return actlines;
 	}
@@ -1924,36 +1902,23 @@ public class RnLog extends JFrame
 		ArrayList<String> results = new ArrayList<String>();
 		
 		//time format used in the spactra
-		DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
-		//extracting the time information from the first entry in the line
-        Date first = formatter.parse(DT1.split(";")[0]);
-        Date last = formatter.parse(DT2.split(";")[0]);
-        long diff = last.getTime() - first.getTime();        
+		DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss");
+        LocalDateTime first =  LocalDateTime.parse(DT1.split(";")[0], timeFormat);
+        LocalDateTime last = LocalDateTime.parse(DT2.split(";")[0], timeFormat);
+        long diff = Duration.between(first,last).toMinutes()/30;        
         
         //failsafe for the time difference
-		if (diff < 1800000) {
+		if (diff < 1) {
 			return results;
 		}
-		//number of entries to fill
-		int fillingpoints = (int) (diff/1800000);
-		//beginning of the filling
-		long firstTimeStamp = first.getTime();
-		for(int i = 1; i<fillingpoints; i++) {
+				
+		for(int i = 1; i<diff; i++) {
 			// i have to be casted to long type to avoid exceeding the integer range
-			results.add((String) formatter.format(new Date(firstTimeStamp + 1800000* (long) i)));
+			LocalDateTime inputDate = first.plusMinutes(i*30);
+			results.add(inputDate.format(timeFormat).toString());
 		}
 		return results;
 	}
-	
-	//display of the progress is implemented though the SwingWorker and corresponding PropertyListener
-    //Invoked when task's progress property changes.
-    public void propertyChange(PropertyChangeEvent evt) {
-        if ("progress".equals(evt.getPropertyName())) {
-            int progress = (Integer) evt.getNewValue();
-            progressBar.setValue(progress);
-            progressBar.setString("Processing files... [" + progress + "%]");
-        } 
-    }
 	
 	//guides the user through the evaluation
 	//this needed to be splitted into two functions, the first one gets the new spectra, copies them
@@ -1966,8 +1931,6 @@ public class RnLog extends JFrame
 			iniFile ini = new iniFile();
 			} 
 		
-		//removing spectral data from the previous runs
-		spectraList.clear();
 		System.out.println("setting the progress bar");
 		progressBar.setStringPainted(true);
 		progressBar.setString("gathering spectra from lvl0 and lvl2");
@@ -1981,9 +1944,8 @@ public class RnLog extends JFrame
 		File lvl2Dir = new File(lvl2);
 		ArrayList<File> rawFiles = new ArrayList<File>();// = lvl0Dir.listFiles();
 		ArrayList<File> evFiles = new ArrayList<File>();// = lvl2Dir.listFiles();
-		//TODO: clear arrays
-		
 
+		//checking if the raw data folder exists; if no, there re no spectra to evaluate -> return
 		if (lvl0Dir.exists()) {
 			System.out.println(lvl0Dir + " exists");
 		} else {
@@ -1993,6 +1955,7 @@ public class RnLog extends JFrame
 			return;
 		}
 		
+		//checking if the lvl2 folder exists and creating if not
 		if (lvl2Dir.exists()) {
 			System.out.println(lvl2Dir + " exists");
 		} else {
@@ -2007,116 +1970,98 @@ public class RnLog extends JFrame
 			}
 		}
 		
-		try {
-			//checking if the file list is already exists to avoid second loading process
-			if (tempFileList.isEmpty()) {
-				//creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
-				class LoadingFiles extends SwingWorker<Void, Void> {
-			        
-					//main task of the worker; executed in background thread		         
-			        @Override
-			        public Void doInBackground() {
-			        	
-			        	//initialize task properties
-			        	isLoadingFilesDone = false;
-			            int progress;
-			            File lvl0Dir = new File(ini.lvl0);
-			            File[] filesInFolder = lvl0Dir.listFiles();
-			            for (int i = 0; i < filesInFolder.length; i++) {
-			            	if (isLoadingFilesDone) {
-			            		break;
-			            	}
-							//check if the file is a spectra
-							if (filesInFolder[i].isFile() && checkFilename(filesInFolder[i].getName())) {
-								tempFileList.add(filesInFolder[i]);
-							}
-							
-							//calculating remaining progress and sending it to GUI
-							progress = (int) ((((double) i+1.0)/(filesInFolder.length))*100.0);
-							System.out.println(progress);
-							setProgress(progress);
-							
-							//search for reference spectrum
-							if (filesInFolder[i].isFile() && filesInFolder[i].getName().contains("temp_ref_spec.ref")) {
-								try {
-									System.out.println("Reference spectrum found: " + filesInFolder[i] + filesInFolder[i].getName());
-									RefSpec = new Spectra(filesInFolder[i].getName(), filesInFolder[i]);
-								} catch (Exception e) {
-									System.out.println("could not load reference spectrum");
-									JOptionPane.showMessageDialog(null, "The reference spectrum found in the lvl0 directory is brocken. Please provide a valid one." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-									e.printStackTrace();
-								}
+		try {			
+			//creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
+			class LoadingFiles extends SwingWorker<Void, Void> {
+		        
+				//main task of the worker; executed in background thread		         
+		        @Override
+		        public Void doInBackground() {
+		        	
+		        	//initialize task properties
+		        	isLoadingFilesDone = false;
+		            int progress;
+		            File lvl0Dir = new File(ini.lvl0);
+		            File[] filesInFolder = lvl0Dir.listFiles();
+		            for (int i = 0; i < filesInFolder.length; i++) {
+		            	if (isLoadingFilesDone) {
+		            		break;
+		            	}
+						//check if the file is a spectra
+						if (filesInFolder[i].isFile() && checkFilename(filesInFolder[i].getName())) {
+							tempFileList.add(filesInFolder[i]);
+						}
+						
+						//calculating remaining progress and sending it to GUI
+						progress = (int) ((((double) i+1.0)/(filesInFolder.length))*100.0);
+						System.out.println(progress);
+						setProgress(progress);
+						
+						//search for reference spectrum
+						if (filesInFolder[i].isFile() && filesInFolder[i].getName().contains(".ref")) {
+							try {
+								System.out.println("Reference spectrum found: " + filesInFolder[i]);
+								RefSpec = new Spectra(filesInFolder[i].getName(), filesInFolder[i]);								
+							} catch (Exception e) {
+								System.out.println("could not load reference spectrum");
+								JOptionPane.showMessageDialog(null, "The reference spectrum found in the lvl0 directory is brocken. Please provide a valid one." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+								e.printStackTrace();
 							}
 						}
-			            return null;
-			        }
-			        
-			        //Executed in event dispatching thread after the task is done or if called upon	         
-			        @Override
-			        public void done() {
-			            isLoadingFilesDone = true;
-			            JOptionPane.getRootFrame().dispose();  
-			        }
-			    }	
-				
-				//calling new thread via SwingWorker to simultaneously change GUI and do loading
-				LoadingFiles loadingTask = new LoadingFiles();
-				loadingTask.addPropertyChangeListener(this);
-				loadingTask.execute();	
-				
-				//user hit cancel -> aborting operations
-				Object[] options = {"Cancel"};
-			    int n = JOptionPane.showOptionDialog(null,
-			                   "Wait until all files are loaded","Loading files...",
-			                   JOptionPane.PLAIN_MESSAGE,
-			                   JOptionPane.INFORMATION_MESSAGE,
-			                   null,
-			                   options,
-			                   options[0]);
-			    if (n == 0) {
-			    	//stopping SwingWorker 
-			    	loadingTask.done();
-			    	Thread.sleep(150);
-			    	tempFileList.clear();
-			    	progressBar.setValue(0);
-			    	progressBar.setString("");
-			    	return;
-			    }
-			}
-	        
-			for (int i = 0; i < lvl2Dir.listFiles().length; i++) {
+					}
+		            return null;
+		        }
+		        
+		        //Executed in event dispatching thread after the task is done or if called upon	         
+		        @Override
+		        public void done() {
+		            isLoadingFilesDone = true;
+		            JOptionPane.getRootFrame().dispose();  
+		        }
+		    }	
+			
+			//calling new thread via SwingWorker to simultaneously change GUI and do loading
+			LoadingFiles loadingTask = new LoadingFiles();
+			loadingTask.addPropertyChangeListener(new PropertyChangeListener() {
+                @Override
+                public void propertyChange(PropertyChangeEvent evt) {
+        	        if ("progress".equals(evt.getPropertyName())) {
+        	            //int progress = (Integer) evt.getNewValue();
+        	            progressBar.setValue((Integer) evt.getNewValue());
+        	            progressBar.setString("Loading file information... [" + evt.getNewValue() + "%]");			        	            
+        	        } 
+        	    }
+            });
+			loadingTask.execute();	
+			
+			//user hit cancel -> aborting operations
+			Object[] options = {"Cancel"};
+		    int n = JOptionPane.showOptionDialog(null,
+		                   "Wait until all files are loaded","Loading files...",
+		                   JOptionPane.PLAIN_MESSAGE,
+		                   JOptionPane.INFORMATION_MESSAGE,
+		                   null,
+		                   options,
+		                   options[0]);
+		    if (n == 0) {
+		    	//stopping SwingWorker 
+		    	loadingTask.done();
+		    	Thread.sleep(150);
+		    	tempFileList.clear();
+		    	progressBar.setValue(0);
+		    	progressBar.setString("");
+		    	return;
+		    }
+		    
+			//searching for the spectra in the lvl2 folder
+			File[] EvalFilesInFolder = lvl2Dir.listFiles();
+			for (int i = 0; i < EvalFilesInFolder.length; i++) {
 				//check if the file is a spectra
-				if (lvl2Dir.listFiles()[i].isFile() && checkFilename(lvl2Dir.listFiles()[i].getName())) {
-					evFiles.add(lvl2Dir.listFiles()[i]);
+				if (EvalFilesInFolder[i].isFile() && checkFilename(EvalFilesInFolder[i].getName())) {
+					evFiles.add(EvalFilesInFolder[i]);
 				}
 			}
-			
-			//creating directories for the extract and activity files
-			new File(ini.extractFileFolder).mkdirs();
-			new File(ini.activityFileFolder).mkdirs();
-			
-			//name convention for extract and activity files
-			String prefixExtract = lvl0Dir.getName();
-			String prefixActivity = lvl0Dir.getName();
-			
-			//creating new activity and extract files
-			extract = new File(ini.extractFileFolder + "\\" + prefixExtract + ".txt");
-			activity = new File(ini.activityFileFolder + "\\" + prefixActivity + ".act");
-			
-			//checking if such files already exist
-			//cycle until free name is found
-			int i = 1;
-			while (extract.exists()) {
-				extract = new File(ini.extractFileFolder + "\\" + prefixExtract + "_" + i + ".txt");
-				i++;
-			}
-			
-			i = 1;
-			while (activity.exists()) {
-				activity = new File(ini.activityFileFolder + "\\" + prefixActivity + "_" + i + ".act");
-				i++;
-			}
-			
+							
 		} catch (Exception e) {
 			//could not load the spectra
 			JOptionPane.showMessageDialog(null, "Could not read the spectra from lvl0 and lvl2 directories, please specify a correct path in the *.ini file." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
@@ -2127,51 +2072,241 @@ public class RnLog extends JFrame
 		}
 		
 		//getting the raw files from the SwingWorker
-		rawFiles = (ArrayList<File>) tempFileList.clone();		
-		//double check if the reference spectrum was found
-		if (RefSpec == null) {
-			//no reference spectrum found
-			JOptionPane.showMessageDialog(null, "No reference spectrum found. Please create one first." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-			progressBar.setString("");
-			progressBar.setValue(0);
-			//asking if user want to create ref spec automatically from the raw data
-			int dialogButton = JOptionPane.YES_NO_OPTION;
-        	int dialogResult = JOptionPane.showConfirmDialog (null, "Would you like to create a new reference spectrum from the raw data (lvl0 directory)?" ,"No reference spectrum was found!", dialogButton);
-        	if(dialogResult == JOptionPane.YES_OPTION){
-        			
-    			spectraList.clear();
-    			//select spectra
-    			for(int i=0; i< rawFiles.size(); i++) {
-    				try {
-    					//loading spectrum
-    					Spectra tempSectra = new Spectra(rawFiles.get(i).getName(), rawFiles.get(i));	
-    						
-						if (tempSectra.ADC1 < ini.fluxthreshold) {
-							//skipping this spectrum
-							continue;
-						}						
-    					
-    					spectraList.add(tempSectra);
-    				} catch (Exception e) {
-    					System.out.print(rawFiles.get(i).getName() + " is broken");
-    					e.printStackTrace();
-    				}
-    			}   
-    			
-    			//return if all files have low flow
-    			if (spectraList.size() == 0) {    				
-    				JOptionPane.showMessageDialog(null, "No suitable spectra for the reference were found." , "Reference spectrum", JOptionPane.ERROR_MESSAGE);
-    				//purge data for the next run
-    				tempFileList.clear();
-        			progressBar.setString("");
-        			progressBar.setValue(0);
-        			return;    				
-    			}
-    			
-    			
-    			System.out.println("spectra chosen");
+		rawFiles = (ArrayList<File>) tempFileList.clone();	
+		//clearing global variable for the next run
+		tempFileList.clear();
+		
+		//compare the two lists, create a new list which contains the new spectra from lvl0 that need to be evaluated
+		Collections.sort(rawFiles, Collections.reverseOrder());
+		Collections.sort(evFiles, Collections.reverseOrder());
+		
+		//if it is the rerun due to the creation of the ref spec -> skip this part all together
+		//if there are no files in lvl2 -> copy all		
+		//if the last file name in lvl0 and lvl2 folders are same -> do nothing
+		//if there are some files in lvl2 -> copy from lvl0 til the name in lvl0 and lvl2 are the same
+		if (!isRefSpecRun) {
+			if(evFiles.isEmpty()) {
+				System.out.println("no files in lvl2 found -> copy all");
+				toEvaluate = (ArrayList<File>) rawFiles.clone();
+			} else {
+				if(rawFiles.get(0).getName().equals(evFiles.get(0).getName())){
+					//no new file
+					JOptionPane.showMessageDialog(null, "The latest spectrum found is " + rawFiles.get(0).getName() + " and it is already evaluated." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+					progressBar.setString("");
+					progressBar.setValue(0);
+					return;
+				} else {
+					System.out.println("copy only new files from lvl0");
+					while(!rawFiles.isEmpty()) {
+						if(rawFiles.get(0).getName().equals(evFiles.get(0).getName())) {
+							break;
+						} else {
+							toEvaluate.add(rawFiles.get(0));
+							rawFiles.remove(0);
+						}				
+					}			
+				}
+			}
+		
+		
+			//clearing the lists
+			rawFiles.clear();
+			evFiles.clear();
+			
+			//double check if the reference spectrum was found
+			if (RefSpec == null) {
+				//setting the progress bar
+				progressBar.setString("");
+				progressBar.setValue(0);
+				//no reference spectrum found
+				//asking if user want to create ref spec automatically from the raw data
+				int dialogButton = JOptionPane.YES_NO_OPTION;
+	        	int dialogResult = JOptionPane.showConfirmDialog (null, "No reference spectrum found. Would you like to create a new reference spectrum from the raw data (lvl0 directory)?" ,"No reference spectrum was found!", dialogButton);
+	        	if(dialogResult == JOptionPane.YES_OPTION){
+	        		
+	        		//changing the indicator for the refspec run
+	    			isRefSpecRun = true;
+	        	} else {     		
+	        		
+	        		//exiting the evaluation procedure       		
+	        		progressBar.setString("");
+	    			progressBar.setValue(0);
+	    			JOptionPane.showMessageDialog(null, "Please create reference spectrum in the raw data folder and run the calculation again." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+	    			return;
+	        	}
+			}
+			
+			//creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
+			class CopyingFiles extends SwingWorker<Void, Void> {
+		        
+				//main task of the worker; executed in background thread		         
+		        @Override
+		        public Void doInBackground() {
+		        	
+		        	//initialize task properties
+		        	isCopyingFilesDone = false;
+		            int progress;
+		            
+		    		//copy the files that need to be evaluated into lvl2 and adding to spectra list to evaluate
+		    		spectraList.clear();
+		    		for(int i=0; i<toEvaluate.size(); i++) {
+		    			if (isCopyingFilesDone) {
+		            		break;
+		            	}
+		    			
+		    			//calculating remaining progress and sending it to GUI
+						progress = (int) ((((double) i+1.0)/(toEvaluate.size()))*100.0);
+						System.out.println(progress);
+						setProgress(progress);
+		    			
+		    			try {
+		    				System.out.println("copy " + toEvaluate.get(i) + " to " +  lvl2Dir + "\\" + toEvaluate.get(i).getName());
+		    				copyFile(toEvaluate.get(i), new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
+		    				//dont flag the lvl0 spectra
+		    				toEvaluate.set(i, new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
+		    				spectraList.add(new Spectra(toEvaluate.get(i).getName(), toEvaluate.get(i)));
+		    				
+		    				
+		    				//moving broken spectra to new folder
+		    				if (spectraList.get(i).linesCount < 2) {
+		    					System.out.print(toEvaluate.get(i).getName() + " is broken/empty. Trying to remove.");
+		    					//if the file is not empty -> move to the "broken Spectra" subfolder
+			    				//if it is empty -> just delete it
+		    					new File(spectraList.get(i).path.getParent()+ "\\delete").mkdirs();
+		    					copyFile(toEvaluate.get(i), new File(lvl2Dir + "\\delete\\"+ toEvaluate.get(i).getName()));			
+								toEvaluate.get(i).delete();
+			    				toEvaluate.remove(i);
+			    				spectraList.remove(i);
+			    				i--;
+			    				continue;
+		    				}
+		    				
+		    				//moving broken spectra to new folder
+		    				if (spectraList.get(i).linesCount < 135) {
+		    					System.out.print(toEvaluate.get(i).getName() + " is broken/empty. Trying to remove.");
+		    					//if the file is not empty -> move to the "broken Spectra" subfolder
+			    				//if it is empty -> just delete it
+		    					new File(spectraList.get(i).path.getParent()+ "\\broken").mkdirs();
+		    					copyFile(toEvaluate.get(i), new File(lvl2Dir + "\\broken\\"+ toEvaluate.get(i).getName()));			
+								toEvaluate.get(i).delete();
+			    				toEvaluate.remove(i);
+			    				spectraList.remove(i);
+			    				i--;
+			    				continue;
+		    				}
+		    				
+							//checking if the flux is higher than the flux threshold
+							if (spectraList.get(i).ADC1 < ini.fluxthreshold) {
+								
+								//moving  Spectra to the new lowFlux subfolder
+				        		new File(spectraList.get(i).path.getParent()+ "\\lowFlux").mkdirs();
+				        		File lowFlux = new File(spectraList.get(i).path.getParent()+ "\\lowFlux\\" + spectraList.get(i).name);
+								copyFile(spectraList.get(i).path, lowFlux);
+				        		
+				        		//deleting file from the lvl2 directory if flagged and removing from the current lists
+				        		File file = new File(spectraList.get(i).path.getPath());
+			        		    file.delete();
+			        		    System.out.println("Flux is too low:" + spectraList.get(i).ADC1 + " Spectrum is removed successfully");		        		    
+			        		    spectraList.remove(i);
+			        		    toEvaluate.remove(i);
+			        		    //moving counter back to the current spectrum
+			        		    i--;
+			        		    continue;
+							}
+							
+							//checking if the LT is higher than 60s
+							if (spectraList.get(i).LT < 60) {
+								
+								//moving  Spectra to the new lowLT subfolder
+				        		new File(spectraList.get(i).path.getParent()+ "\\lowLT").mkdirs();
+				        		File lowFlux = new File(spectraList.get(i).path.getParent()+ "\\lowLT\\" + spectraList.get(i).name);
+								copyFile(spectraList.get(i).path, lowFlux);
+				        		
+				        		//deleting file from the lvl2 directory if flagged and removing from the current lists
+				        		File file = new File(spectraList.get(i).path.getPath());
+			        		    file.delete();
+			        		    System.out.println("LT is too low:" + spectraList.get(i).LT + " Spectrum is removed successfully");		        		    
+			        		    spectraList.remove(i);
+			        		    toEvaluate.remove(i);
+			        		    //moving counter back to the current spectrum
+			        		    i--;
+			        		    continue;
+							}
+		    				
+		    			} catch (IOException e) {
+		    				System.out.println("Could not copy file into lvl2");
+		    				JOptionPane.showMessageDialog(null, "Could not copy the evaluated file into the lvl2 folder. Maybe you have no writing permissions?"/*, JOptionPane.INFORMATION_MESSAGE*/);
+		    				e.printStackTrace();
+		    				break;
+		    			} catch (Exception e2) {
+		    				e2.printStackTrace();
+		    			}
+		    		}
+		            return null;
+		        }
+		        
+		        //Executed in event dispatching thread after the task is done or if called upon	         
+		        @Override
+		        public void done() {
+		            isCopyingFilesDone = true;
+		            JOptionPane.getRootFrame().dispose();  
+		        }
+		    }	
+			
+			//calling new thread via SwingWorker to simultaneously change GUI and do loading
+			CopyingFiles copyingTask = new CopyingFiles();
+			copyingTask.addPropertyChangeListener(new PropertyChangeListener() {
+	            @Override
+	            public void propertyChange(PropertyChangeEvent evt) {
+	    	        if ("progress".equals(evt.getPropertyName())) {
+	    	            //int progress = (Integer) evt.getNewValue();
+	    	            progressBar.setValue((Integer) evt.getNewValue());
+	    	            progressBar.setString("Copying files to lvl2 folder... [" + evt.getNewValue() + "%]");			        	            
+	    	        } 
+	    	    }
+	        });
+			copyingTask.execute();		
+			
+			//user hit cancel -> aborting operations
+			Object[] options = {"Cancel"};
+		    int n = JOptionPane.showOptionDialog(null,
+		                   "Wait until all files are copied","copying files...",
+		                   JOptionPane.PLAIN_MESSAGE,
+		                   JOptionPane.INFORMATION_MESSAGE,
+		                   null,
+		                   options,
+		                   options[0]);
+		    if (n == 0) {
+		    	//stopping SwingWorker 
+		    	copyingTask.done();
+		    	try {
+					Thread.sleep(150);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+		    	progressBar.setValue(0);
+		    	progressBar.setString("");
+		    	//reseting the refspec indicator
+			    isRefSpecRun = false;
+		    	return;
+		    }
+		    
+		    //return if all files have low flow or are broken/empty spectra
+			if (spectraList.size() == 0) {    				
+				JOptionPane.showMessageDialog(null, "No suitable spectra for the reference were found." , "Reference spectrum", JOptionPane.ERROR_MESSAGE);
+				progressBar.setString("");
+				progressBar.setValue(0);
+				//reseting the refspec indicator
+			    isRefSpecRun = false;
+				return;    				
+			}   
+			
+			//creating new ref spec if none was found in the lvl0 dir
+		    //using only the checked files from the copying task
+			if (RefSpec == null) {			
 				try {
 					RefSpec = new Spectra(spectraList, ini);
+					suitableSpectra = (ArrayList<Spectra>) spectraList.clone();
 					spectraList.clear();
 					spectraList.add(RefSpec);
 					//setting index to zero
@@ -2180,173 +2315,68 @@ public class RnLog extends JFrame
 					btnWaitRefSpectrum.setVisible(true);
 					return;
 				} catch (IOException e1) {
-					// TODO Auto-generated catch block
 					JOptionPane.showMessageDialog(null, "Could not create temporary reference specterum. Maybe you have no writing permissions?", "Create Reference Spectrum", JOptionPane.INFORMATION_MESSAGE);
 					e1.printStackTrace();
 				}
-				
-        	} else {
-        		progressBar.setString("");
-    			progressBar.setValue(0);
-    			return;
-        	}
-		}
-		
-		//clearing global variable for the next run
-		tempFileList.clear();
-		//compare the two lists, create a new list which contains the new spectra from lvl0 that need to be evaluated
-		//add them to a Map<String, int <amount of added items>
-		int max = rawFiles.size();
-		if(evFiles.size()>max)
-			max = evFiles.size();
-		//get the latest Filenames that are not in lvl0
-		ArrayList<File> toEvaluate = new ArrayList<File>();
-		Collections.sort(rawFiles, Collections.reverseOrder());
-		Collections.sort(evFiles, Collections.reverseOrder());
-		//check if there are no files in evFiles (lvl2), otherwise u get a nullPointer exception
-		if(!evFiles.isEmpty()) {
-			if(rawFiles.get(0) == evFiles.get(0)){
-				//no new file
-				JOptionPane.showMessageDialog(null, "The latest spectrum found is " + rawFiles.get(0).getName() + " and it is already evaluated." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-				progressBar.setString("");
-				progressBar.setValue(0);
-				return;
 			}
 		}
-		//copy all, or just the new ones
-		if(evFiles.isEmpty()) {
-			System.out.println("no files in lvl2 found -> copy all");
-			while(!rawFiles.isEmpty()) {
-				System.out.println("remembering " + rawFiles.get(0));
-				toEvaluate.add(rawFiles.get(0));
-				rawFiles.remove(0);
-			}
-		} else {
-			System.out.println("copy only new files from lvl0");
-			while(!rawFiles.isEmpty()) {
-				if(rawFiles.get(0).getName().equals(evFiles.get(0).getName())) {
-					break;
-				} else {
-					toEvaluate.add(rawFiles.get(0));
-					rawFiles.remove(0);
-				}
-			}
-		}
-		if(toEvaluate.isEmpty()) {
-			JOptionPane.showMessageDialog(null, "The latest spectrum found is " + rawFiles.get(0).getName() + " and it is already evaluated." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-			progressBar.setString("");
-			progressBar.setValue(0);
-			return;
-		}
-		progressBar.setString("extracting new spectra");
-		progressBar.setValue(0);
-		rawFiles.clear();
-		evFiles.clear();
-		
 		//////////////////////////////////////////////////////
 		//extract these files and add it to the extract file
 		//////////////////////////////////////////////////////
-
-		//creating extract file header
-		FileOutputStream fileOutHeader;
-		try {
-			fileOutHeader = new FileOutputStream(extract);
-			BufferedWriter bwHeader = new BufferedWriter(new OutputStreamWriter(fileOutHeader));
-			
-	    	//write first line
-			bwHeader.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \r\n");
-			bwHeader.close();
-	        fileOutHeader.close();
-		} catch (IOException e2) {
-			// TODO Auto-generated catch block
-			e2.printStackTrace();
+		
+		//creating directories for the extract and activity files
+		new File(ini.extractFileFolder).mkdirs();
+		new File(ini.activityFileFolder).mkdirs();
+		
+		//name convention for extract and activity files
+		String prefixExtract = lvl0Dir.getName();
+		String prefixActivity = lvl0Dir.getName();
+		
+		//creating new activity and extract files
+		extract = new File(ini.extractFileFolder + "\\" + prefixExtract + ".txt");
+		activity = new File(ini.activityFileFolder + "\\" + prefixActivity + ".act");
+		
+		//checking if such files already exist
+		//cycle until free name is found
+		int count = 1;
+		while (extract.exists()) {
+			extract = new File(ini.extractFileFolder + "\\" + prefixExtract + "_" + count + ".txt");
+			count++;
 		}
 		
-		//creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
-		class CopyingFiles extends SwingWorker<Void, Void> {
-	        
-			//main task of the worker; executed in background thread		         
-	        @Override
-	        public Void doInBackground() {
-	        	
-	        	//initialize task properties
-	        	isCopyingFilesDone = false;
-	            int progress;
-	            
-	    		//copy the files that need to be evaluated into lvl2 and adding to spectra list to evaluate
-	    		spectraList.clear();
-	    		for(int i=0; i<toEvaluate.size(); i++) {
-	    			if (isCopyingFilesDone) {
-	            		break;
-	            	}
-	    			
-	    			//calculating remaining progress and sending it to GUI
-					progress = (int) ((((double) i+1.0)/(toEvaluate.size()))*100.0);
-					System.out.println(progress);
-					setProgress(progress);
-	    			
-	    			try {
-	    				System.out.println("copy " + toEvaluate.get(i) + " to " +  lvl2Dir + "\\" + toEvaluate.get(i).getName());
-	    				copyFile(toEvaluate.get(i), new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
-	    				//dont flag the lvl0 spectra
-	    				System.out.print("davor :" +toEvaluate.get(i));
-	    				toEvaluate.set(i, new File(lvl2Dir + "\\" + toEvaluate.get(i).getName()));
-	    				System.out.print("danach :" +toEvaluate.get(i));
-	    				spectraList.add(new Spectra(toEvaluate.get(i).getName(), toEvaluate.get(i)));
-	    			} catch (IOException e) {
-	    				System.out.println("Could not copy file into lvl2");
-	    				JOptionPane.showMessageDialog(null, "Could not copy the evaluated file into the lvl2 folder. Maybe you have no writing permissions?"/*, JOptionPane.INFORMATION_MESSAGE*/);
-	    				e.printStackTrace();
-	    				break;
-	    			}  catch (Exception e2) {
-	    				System.out.print(toEvaluate.get(i).getName() + " is broken");
-	    				e2.printStackTrace();
-	    			}
-	    		}
-	            return null;
-	        }
-	        
-	        //Executed in event dispatching thread after the task is done or if called upon	         
-	        @Override
-	        public void done() {
-	            isCopyingFilesDone = true;
-	            JOptionPane.getRootFrame().dispose();  
-	        }
-	    }	
-		
-		//calling new thread via SwingWorker to simultaneously change GUI and do loading
-		CopyingFiles copyingTask = new CopyingFiles();
-		copyingTask.addPropertyChangeListener(this);
-		copyingTask.execute();		
+		count = 1;
+		while (activity.exists()) {
+			activity = new File(ini.activityFileFolder + "\\" + prefixActivity + "_" + count + ".act");
+			count++;
+		}
 		
 		//extract spectra from spectra list and write it into extFile
 		File extFile = extract;
 		System.out.println(extract);
 		FileOutputStream fileOut;
 		
-		//user hit cancel -> aborting operations
-		Object[] options = {"Cancel"};
-	    int n = JOptionPane.showOptionDialog(null,
-	                   "Wait until all files are copied","copying files...",
-	                   JOptionPane.PLAIN_MESSAGE,
-	                   JOptionPane.INFORMATION_MESSAGE,
-	                   null,
-	                   options,
-	                   options[0]);
-	    if (n == 0) {
-	    	//stopping SwingWorker 
-	    	copyingTask.done();
-	    	try {
-				Thread.sleep(150);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-	    	progressBar.setValue(0);
-	    	progressBar.setString("");
-	    	return;
-	    }
+		//creating extract file header
+		FileOutputStream fileOutHeader;
+		try {
+		fileOutHeader = new FileOutputStream(extract);
+		BufferedWriter bwHeader = new BufferedWriter(new OutputStreamWriter(fileOutHeader));
+		
+		//write first line
+		bwHeader.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \r\n");
+		bwHeader.close();
+		fileOutHeader.close();
+		} catch (IOException e2) {
+		e2.printStackTrace();
+		}
 	    
+		//getting spectra from the saving container if it is ref spec run
+		if (isRefSpecRun) {
+			spectraList.clear();
+			spectraList = (ArrayList<Spectra>) suitableSpectra.clone();
+			suitableSpectra.clear();
+		}
+		
+		
 		try {
 			fileOut = new FileOutputStream(extFile, true);
 			//--------------------------------------^^^^ means append new line, don't override old data
@@ -2371,40 +2401,12 @@ public class RnLog extends JFrame
 			        	
 			        	//calculating remaining progress and sending it to GUI
 						progress = (int) ((((double) i+1.0)/(spectraList.size()))*100.0);
-						setProgress(progress);
-			        	
-						System.out.println("Flux is: " + spectraList.get(i).ADC1);
-						//checking if the flux is higher than the fluxthreshold
-						if (spectraList.get(i).ADC1 < ini.fluxthreshold) {
-							
-							//moving  Spectra to the new lowFlux subfolder
-			        		new File(spectraList.get(i).path.getParent()+ "\\lowFlux").mkdirs();
-			        		
-			        		        			
-			        		File lowFlux = new File(spectraList.get(i).path.getParent()+ "\\lowFlux\\" + spectraList.get(i).name);
-			        		try {
-								copyFile(spectraList.get(i).path, lowFlux);
-							} catch (IOException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-			        		System.out.println("copied " + spectraList.get(i).path.getPath() + " to " + lowFlux.getPath() );
-			        		
-			        		//deleting file from the lvl2 directory if flagged
-			        		File file = new File(spectraList.get(i).path.getPath());
-		        		    file.delete();
-		        		    System.out.println("Flux is too low:" + spectraList.get(i).ADC1 + " Spectrum is removed successfully");		        		    
-		        		    spectraList.remove(i);
-		        		    //moving counter back to the current spectrum
-		        		    i--;
-		        		    continue;
-						}						
+						setProgress(progress);						
 						
 			        	//set edge of spectrum according to reference (if no edge is set yet)
 			        	try {
 							spectraList.get(i).calcEdge(RefSpec, ini.thres3, ini.thres4, ini.Edgeoffset);
 						} catch (IOException e) {
-							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
 			        	spectraList.get(i).showSpectra(chartPanel);
@@ -2416,7 +2418,6 @@ public class RnLog extends JFrame
 			        		try {
 								spectraList.get(i).setEdge(refSpecEdge);
 							} catch (IOException e) {
-								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
 			        		//add actual spectrum to list
@@ -2438,33 +2439,46 @@ public class RnLog extends JFrame
 			
 			//calling new thread via SwingWorker to simultaneously change GUI and do loading
 			SettingEdge settingTask = new SettingEdge();
-			settingTask.addPropertyChangeListener(this);
+			settingTask.addPropertyChangeListener(new PropertyChangeListener() {
+                @Override
+                public void propertyChange(PropertyChangeEvent evt) {
+        	        if ("progress".equals(evt.getPropertyName())) {
+        	            //int progress = (Integer) evt.getNewValue();
+        	            progressBar.setValue((Integer) evt.getNewValue());
+        	            progressBar.setString("Setting Po edge... [" + evt.getNewValue() + "%]");			        	            
+        	        } 
+        	    }
+            });
 			settingTask.execute();
 			
 			//user hit cancel -> aborting operations
-		    n = JOptionPane.showOptionDialog(null,
-		                   "Wait until Po edge is set...","copying files...",
+			Object[] options = {"Cancel"};
+		    int m = JOptionPane.showOptionDialog(null,
+		                   "Wait until Po edge is set...","setting edge...",
 		                   JOptionPane.PLAIN_MESSAGE,
 		                   JOptionPane.INFORMATION_MESSAGE,
 		                   null,
 		                   options,
 		                   options[0]);
-		    if (n == 0) {
+		    if (m == 0) {
 		    	//stopping SwingWorker 
 		    	settingTask.done();
 		    	try {
 					Thread.sleep(150);
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 		    	progressBar.setValue(0);
-		    	progressBar.setString("");	
+		    	progressBar.setString("");
+		    	//reseting the refspec indicator
+			    isRefSpecRun = false;
 		    	return;
 		    }
 	        
-	      //removing flagged spectra from the spectra list
-		    System.out.println(flaggedIdx.size() + "size of theflagged");
+		    //reseting the refspec indicator
+		    isRefSpecRun = false;
+	        //removing flagged spectra from the spectra list
+		    System.out.println(flaggedIdx.size() + " size of the flagged");
     		for (int i = flaggedIdx.size() - 1; i >= 0; i--) {
     			spectraList.remove(flaggedIdx.get(i).intValue());
     			System.out.println("removing flagged spectrum at index " + flaggedIdx.get(i));
@@ -2486,8 +2500,6 @@ public class RnLog extends JFrame
 	        		new File(flagged.get(0).path.getParent()+ "\\flagged").mkdirs();
 	        		
 	        		for(int i=0; i<flagged.size(); i++) {
-	        			//removing the generated edge if the user currently don't want to set the edge manually
-	        			flagged.get(i).removeEdge();
 	        			
 		        		File tmpFlagged = new File(flagged.get(i).path.getParent()+ "\\flagged\\" + flagged.get(i).name);
 		        		copyFile(flagged.get(i).path, tmpFlagged);
@@ -2520,15 +2532,17 @@ public class RnLog extends JFrame
 	        	return;
 	        }
 		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		} catch (IOException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
 	}
 	
 	public void continueEvaluation2(JButton btnContinue) {
+		//hiding continue button 
+		btnContinue.setVisible(false);
+		//reseting the refspec indicator
+	    isRefSpecRun = false;
 		FileOutputStream fileOut;
 		try {
 			//user set the edge of some spectra manually
@@ -2547,6 +2561,7 @@ public class RnLog extends JFrame
 			for (int i=0; i<spectraList.size(); i++) {
 				tmpList.add(spectraList.get(spectraList.size()-i-1));
 			}
+			
 			spectraList = (ArrayList<Spectra>) tmpList.clone();
 			
 			//writing the extract file
@@ -2595,25 +2610,16 @@ public class RnLog extends JFrame
 				        spectraList.get(i).monitor+ "; \r\n");
 			}
 			
-			//sorting entries in the final extract file by the measurement time
-            DateFormat formatter = new SimpleDateFormat("dd.MM.yyy HH:mm:ss");
+			//sorting entries in the final extract file by the measurement time using insertion algorithm 
             for (int i = 0; i<extlines.size()-1; i++) { 
 	            String current = extlines.get(i);
-	            double currentTime;
-				try {
-					currentTime = formatter.parse(current.split(";")[0]).getTime();
-					int j = i - 1;
-	                while(j >= 0 &&  currentTime < formatter.parse(extlines.get(j).split(";")[0]).getTime()) {
-	                	extlines.set(j+1,extlines.get(j));
-	                    j--;
-	                }
-	                // at this point we've exited, so j is either -1
-	                // or it's at the first element where current >= a[j]
-	                extlines.set(j+1, current);
-				} catch (ParseException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}	
+				LocalDateTime currentTime =  LocalDateTime.parse(current.split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));				
+				int j = i - 1;
+				while(j >= 0 &&  currentTime.isBefore(LocalDateTime.parse(extlines.get(j).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"))) ) {
+					extlines.set(j+1,extlines.get(j));
+				    j--;
+				}
+				extlines.set(j+1, current);	
             }
 			
 		    fileOut = new FileOutputStream(extract, true);
@@ -2662,7 +2668,7 @@ public class RnLog extends JFrame
         bw1.write("Flux Offset : " + String.valueOf(ini.fluxoffset) + "\r\n");
         bw1.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
         bw1.write("Format: \r\n");
-        bw1.write("Stoptime,Activity [Bq/m3], Ac[dps],Ac/dt,Total, Window, Edge, temp1[C], temp2[C], temp3[C], Pressure[mbar], LifeTime[sec], Flux[m3/s], ID \r\n");
+        bw1.write("Stoptime; Activity [Bq/m3]; Ac[dps]; Ac/dt; Total; Window; Edge; temp1[C]; temp2[C]; temp3[C]; Pressure[mbar]; LifeTime[sec]; Flux[m3/s]; ID \r\n");
         
         //split extlines to get rid of duplicates or  missing values
         ArrayList<ArrayList<String>> splittedExtlines = new ArrayList<ArrayList<String>>();
@@ -2672,30 +2678,29 @@ public class RnLog extends JFrame
         //save positions where to split
         // 0-> dont split; 1-> split; 2-> delete 
         int[] flag = new int[extlines.size()];
-        flag[1] = 0;
+        System.out.println(spectraList.size());
+        flag[0] = 0;
         tmpStringList.add(extlines.get(0));
-        int j = 0;
-        
         
         for (int i = 1; i< extlines.size(); i++) {
         	
-        	long last = formatter.parse(extlines.get(i-1).split(";")[0]).getTime();
-        	long actual =  formatter.parse(extlines.get(i).split(";")[0]).getTime();
-        	if((actual - last) > 1800000 ) {
-        		//if (Datetime_last - Datetime_current) > 1800s
+        	LocalDateTime current =  LocalDateTime.parse(extlines.get(i).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));
+            LocalDateTime last = LocalDateTime.parse(extlines.get(i-1).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));
+            long difference = Duration.between(last,current).toMinutes();
+            
+        	if(difference > 30 ) {
+        		//if (Datetime_last - Datetime_current) > 30min
         		flag[i] = 1; //split here
-        		System.out.println("split " + (actual - last));
+        		System.out.println("split, diff is " + difference + " min");
         		splittedExtlines.add((ArrayList<String>) tmpStringList.clone());
         		tmpStringList.clear();
-        		j++;
         		tmpStringList.add(extlines.get(i));
         		System.out.println("new Array of extLines " + extlines.get(i));
         	}
-        	
-	        	else if((actual - last) < 6000 ) {
-	        		//if (Datetime_last - Datetime_current) < 60s
+	        	else if(difference < 1 ) {
+	        		//if (Datetime_last - Datetime_current) < 1min
 	        		flag[i] = 2; //remove this
-	        		System.out.println("remove " + (actual - last));
+	        		System.out.println("remove " + difference);
 	        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
 	        		continue;
 	        	}
@@ -2729,17 +2734,14 @@ public class RnLog extends JFrame
         	//just write the results into the file if no filler is given or only one block was created
 	        for(int i=0; i<splittedActlines.size(); i++) {
 	        	for(int k = 0; k < splittedActlines.get(i).size() ; k++) {
-	        		System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
 	        		bw1.write(splittedActlines.get(i).get(k) + "\r\n");
 	        	}
 	        }
         } else {
         	//write the results into the file but every time a new block starts, fill it with the correct date and the filler
         	System.out.println("Fill Up with " + ini.filler);
-        	System.out.println("splittedActlines.size() is " + splittedActlines.size());
         	for(int i = 0; i < splittedActlines.size() ; i++) {
         		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
-        			//System.out.println( i + " "+ k + " " + splittedActlines.get(i).get(k));
         			bw1.write(splittedActlines.get(i).get(k) + "\r\n");
         		}
         		try {
@@ -2758,9 +2760,7 @@ public class RnLog extends JFrame
         		
         	}
         }
-        System.out.println("splittedActlines.size() is " + splittedActlines.size());
         bw1.close();
-    	btnContinue.setVisible(false);
     	JOptionPane.showMessageDialog(null, "Successfully created " + activity.getName() , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
     	progressBar.setString("");
     	progressBar.setValue(0);
@@ -2779,10 +2779,8 @@ public class RnLog extends JFrame
 	}
 	
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 }
