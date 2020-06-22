@@ -31,27 +31,10 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
-public class AutoRnLog extends JPanel {
-
+public class AutoRnLog{	
 	
-	//Creating the panel	
-	private static JTextArea taskOutput;
 	public static String SoftwareVersion = "AutoRnLog 0.1";
-	
-	
-	public AutoRnLog() {
-		
-		taskOutput = new JTextArea(5, 20);
-        taskOutput.setMargin(new Insets(5,5,5,5));
-        taskOutput.setEditable(false);
-        
-        JPanel panel = new JPanel();
-        
-        add(panel, BorderLayout.PAGE_START);
-        add(new JScrollPane(taskOutput), BorderLayout.CENTER);
-        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-		
-	}
+	public static String taskOutput = "";	
 	
 	//getting all files in the folder, including all subfolders; recursive
 	public static void listOfAllFiles(String directoryName, ArrayList<File> files, ArrayList<String> fileNames) {
@@ -289,7 +272,7 @@ public class AutoRnLog extends JPanel {
 	}
 
 	//Function to write a log file and close the frame
-    private static void writingLogAndClosing(JFrame frame, iniFile ini) {//creating log file for the current run
+    private static void writingLogAndClosing(iniFile ini) {//creating log file for the current run
         //log file is saved in the lvl1 dir
     	File lvl1Dir = new File(ini.lvl1);
         File logFile = new File(ini.lvl1 + "\\LogFile_" + lvl1Dir.getName() + ".txt");
@@ -298,10 +281,9 @@ public class AutoRnLog extends JPanel {
 			fileOut = new FileOutputStream(logFile, true);
 			//--------------------------------------^^^^ means append new line, don't override old data
 			BufferedWriter extractWriter = new BufferedWriter(new OutputStreamWriter(fileOut));				
-			extractWriter.write(taskOutput.getText());
+			extractWriter.write(taskOutput);
 			extractWriter.close();
 		    fileOut.close();
-		    frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
 		} catch (FileNotFoundException e) {
 			System.out.println("Something went wrong!\n\n");
 			System.out.println("\nExiting evaluation\n");
@@ -315,46 +297,33 @@ public class AutoRnLog extends JPanel {
     }
  
     public static void main(String[] args) {
-            	
-    	//initialize a gui window with log text
-    	//Create and set up the window.
-        JFrame frame = new JFrame("AutoRnLog");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
- 
-        //Create and set up the content pane.
-        JComponent newContentPane = new AutoRnLog();
-        newContentPane.setOpaque(true); //content panes must be opaque
-        frame.setContentPane(newContentPane);
- 
-        //Display the window.
-        frame.pack();
-        frame.setVisible(true);
         
         //time format used in the spectra
 		DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss");
 		
-		taskOutput.append(LocalDateTime.now().format(timeFormat).toString() + ": Starting the evaluation\n");
-		
-        taskOutput.append("Loading ini file...");
-        
+		taskOutput = taskOutput + LocalDateTime.now().format(timeFormat).toString() + ": Starting the evaluation\n";
+		System.out.print(LocalDateTime.now().format(timeFormat).toString() + ": Starting the evaluation\n");
+        taskOutput = taskOutput + "Loading ini file...";
+        System.out.print("Loading ini file...");
         //creating log file for the case if no ini file can be loaded
         //it is created in the folder with .jar file
         iniFile ini;
         try {
         	ini = new iniFile(new File(args[0]));
         } catch (Exception e) {
-        	taskOutput.append("Ini file cannot be loaded\n");
-			taskOutput.append("Exiting evaluation\n");
+        	taskOutput = taskOutput + "Ini file cannot be loaded\n";
+        	System.out.print("Ini file cannot be loaded\n");
+			taskOutput = taskOutput + "Exiting evaluation\n";
+			System.out.print("Exiting evaluation\n");
 			File logFile = new File("LogFile_NO_INI_FILE.txt");
 	        FileOutputStream fileOut;
 			try {
 				fileOut = new FileOutputStream(logFile, true);
 				//--------------------------------------^^^^ means append new line, don't override old data
 				BufferedWriter extractWriter = new BufferedWriter(new OutputStreamWriter(fileOut));	
-				extractWriter.write(taskOutput.getText());
+				extractWriter.write(taskOutput);
 				extractWriter.close();
 			    fileOut.close();
-			    frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
 			} catch (FileNotFoundException e2) {
 				System.out.println("Something went wrong!\n\n");
 				System.out.println("\nExiting evaluation\n");
@@ -368,10 +337,11 @@ public class AutoRnLog extends JPanel {
 			return;                	
         }
         
-        taskOutput.append("done\n");
+        taskOutput = taskOutput + "done\n";
+        System.out.print("done\n");
         
-        taskOutput.append("Getting list of files to evaluate...");
-        
+        taskOutput = taskOutput + "Getting list of files to evaluate...";
+        System.out.print("Getting list of files to evaluate...");
         //checking if the lvl1 folder exists and creating if not
         File lvl1Dir = new File(ini.lvl1);                
 		if (lvl1Dir.exists()) {
@@ -391,8 +361,10 @@ public class AutoRnLog extends JPanel {
 						try {
 							copyFile(iniFolderList[i], new File(ini.lvl0+"\\" + iniFolderList[i].getName()));
 						} catch (IOException e) {
-							taskOutput.append("\nSomething went wrong!\n\n");
-		    				taskOutput.append(e.toString());
+							taskOutput = taskOutput + "\nSomething went wrong!\n\n";
+							System.out.print("\nSomething went wrong!\n\n");
+		    				taskOutput = taskOutput + e.toString();
+		    				System.out.print(e.toString());
 	        				continue;
 						}
 						iniFolderList[i].delete();
@@ -401,9 +373,11 @@ public class AutoRnLog extends JPanel {
 				}  				
 			} else {
 				//major point, cannot continue without, exiting application
-				taskOutput.append(lvl1Dir + " cannot be created\n");
-				taskOutput.append("Exiting evaluation\n");
-				writingLogAndClosing(frame, ini);
+				taskOutput = taskOutput + lvl1Dir + " cannot be created\n";
+				System.out.print(lvl1Dir + " cannot be created\n");
+				taskOutput = taskOutput + "Exiting evaluation\n";
+				System.out.print("Exiting evaluation\n");
+				writingLogAndClosing(ini);
 				return;
 			}
 		}        		
@@ -424,15 +398,17 @@ public class AutoRnLog extends JPanel {
         
         //exiting if no new files are found (1 file should be refSpec and cannot be evaluated by the routine anyway)
         if (lvl0FileNames.size() < 2) {
-        	taskOutput.append("done\nNo new files found!\n\n");
-        	taskOutput.append(args[0]);
-        	writingLogAndClosing(frame, ini);
+        	taskOutput = taskOutput + "done\nNo new files found!\n\n";
+        	System.out.print("done\nNo new files found!\n\n");
+        	writingLogAndClosing(ini);
         	return;
         }
         
-        taskOutput.append("done.\n");
+        taskOutput = taskOutput + "done.\n";
+        System.out.print("done.\n");
         
-        taskOutput.append("Loading and copying spectra...");
+        taskOutput = taskOutput + "Loading and copying spectra...";
+        System.out.print("Loading and copying spectra...");
         //initialization of the RefSPec using the hard coded data
         Spectra RefSpec = new Spectra();
         
@@ -456,10 +432,13 @@ public class AutoRnLog extends JPanel {
 					RefSpec = new Spectra(refSpecFile.getName(), refSpecFile);								
 				} catch (Exception e) {
 					//major point, cannot continue without, exiting application
-					taskOutput.append("could not load " + lvl0FileNames.get(i) + " as reference spectrum\n");
-					taskOutput.append(e.toString());
-					taskOutput.append("\nExiting evaluation\n");
-					writingLogAndClosing(frame, ini);
+					taskOutput = taskOutput + "Could not load " + lvl0FileNames.get(i) + " as reference spectrum!\n";
+					System.out.print("Could not load " + lvl0FileNames.get(i) + " as reference spectrum!\n");
+					taskOutput = taskOutput + e.toString();
+					System.out.print(e.toString());
+					taskOutput = taskOutput + "\nExiting evaluation\n";
+					System.out.print("\nExiting evaluation\n");
+					writingLogAndClosing(ini);
                 	return;
 				}
 			//check if the file is a spectra
@@ -516,8 +495,8 @@ public class AutoRnLog extends JPanel {
 	    				continue;
 					}
 					
-					//checking if the LT is higher than 60s and moving them to lowFlux subfolder
-					if (spectraList.get(i).LT < 60) {
+					//checking if the LT is higher than 1700s and moving them to lowFlux subfolder
+					if (spectraList.get(i).LT < 1700) {
 						System.out.println("LT is too low: " + spectraList.get(i).LT + ". Trying to remove.");
     					new File(ini.lvl1+ "\\lowLT").mkdirs();
     					copyFile(destinationSpectrum, new File(ini.lvl1 + "\\lowLT\\"+ destinationSpectrum.getName()));			
@@ -528,24 +507,23 @@ public class AutoRnLog extends JPanel {
 	    				lowLTCount++;
 	    				continue;
 					}
-    				
-    			} catch (IOException e) {
-    				//maybe error concerns only this file, continue evaluation
-    				taskOutput.append("Something went wrong!\n\n");
-    				taskOutput.append(e.toString());
-    				continue;		    				
+    				    				
     			} catch (Exception e2) {
     				//maybe error concerns only this file, continue evaluation
-    				taskOutput.append("Something went wrong!\n\n");
-    				taskOutput.append(e2.toString());
+    				taskOutput = taskOutput + "Something went wrong!\n\n";
+    				System.out.print("Something went wrong!\n\n");
+    				taskOutput = taskOutput + e2.toString();
+    				System.out.print(e2.toString());
     				continue;	
 				} 						
 			}
 		}
         
-        taskOutput.append("done.\n");
+        taskOutput = taskOutput + "done.\n";
+        System.out.print("done.\n");
         
-        taskOutput.append("Calculating Po edge and flagging spectra...");	            
+        taskOutput = taskOutput + "Calculating Po edge and flagging spectra...";	
+        System.out.print("Calculating Po edge and flagging spectra...");
 		//ArrayList for the future extract file
 		ArrayList<String> extlines = new ArrayList<String>();
 		//counters for final log
@@ -560,8 +538,10 @@ public class AutoRnLog extends JPanel {
 				spectraList.get(i).calcEdge(RefSpec, ini.thres3, ini.thres4, ini.Edgeoffset);
 			} catch (IOException e) {
 				//maybe error concerns only this file, continue evaluation
-				taskOutput.append("Something went wrong!\n\n");
-				taskOutput.append(e.toString());
+				taskOutput = taskOutput + "Something went wrong!\n\n";
+				System.out.print("Something went wrong!\n\n");
+				taskOutput = taskOutput + e.toString();
+				System.out.print(e.toString());
 				continue;
 			}
         	
@@ -585,8 +565,10 @@ public class AutoRnLog extends JPanel {
 					
 				} catch (IOException e) {
 					//maybe error concerns only this file, continue evaluation
-					taskOutput.append("Something went wrong!\n\n");
-    				taskOutput.append(e.toString());
+					taskOutput = taskOutput + "Something went wrong!\n\n";
+					System.out.print("Something went wrong!\n\n");
+    				taskOutput = taskOutput + e.toString();
+    				System.out.print(e.toString());
     				continue;
 				}
         	} else {
@@ -648,9 +630,11 @@ public class AutoRnLog extends JPanel {
 			}
 			extlines.set(j+1, current);	
         }
-        taskOutput.append("done.\n");
+        taskOutput = taskOutput + "done.\n";
+        System.out.print("done.\n");
         
-        taskOutput.append("Writing to the extract file...");
+        taskOutput = taskOutput + "Writing to the extract file...";
+        System.out.print("Writing to the extract file...");
         //creating directories for the extract and activity files
 		new File(ini.extractFileFolder).mkdirs();
 		new File(ini.activityFileFolder).mkdirs();
@@ -681,25 +665,22 @@ public class AutoRnLog extends JPanel {
 			}
 			extractWriter.close();
 		    fileOut.close();
-		} catch (FileNotFoundException e) {
+		} catch (Exception e) {
 			//major point, cannot continue without, exiting application
-			taskOutput.append("Something went wrong!\n\n");
-			taskOutput.append(e.toString());
-			taskOutput.append("\nExiting evaluation\n");
-			writingLogAndClosing(frame, ini);
-			return;
-		} catch (IOException e) {
-			//major point, cannot continue without, exiting application
-			taskOutput.append("Something went wrong!\n\n");
-			taskOutput.append(e.toString());
-			taskOutput.append("\nExiting evaluation\n");
-			writingLogAndClosing(frame, ini);
+			taskOutput = taskOutput + "Something went wrong!\n\n";
+			System.out.print("Something went wrong!\n\n");
+			taskOutput = taskOutput + e.toString();
+			System.out.print(e.toString());
+			taskOutput = taskOutput + "\nExiting evaluation\n";
+			System.out.print("\nExiting evaluation\n");
+			writingLogAndClosing(ini);
 			return;
 		}
-		taskOutput.append("done.\n");
+		taskOutput = taskOutput + "done.\n";
+		System.out.print("done.\n");
 		
-		taskOutput.append("Calculating activity and writing it to file...");
-		
+		taskOutput = taskOutput + "Calculating activity and writing it to file...";
+		System.out.print("Calculating activity and writing it to file...");
 		//clearing extlines to fill with complete month-extract file
 		extlines.clear();
 		try {
@@ -711,23 +692,18 @@ public class AutoRnLog extends JPanel {
 	        line = bufferedReader.readLine();
 	        while ((line = bufferedReader.readLine()) != null) {
 	            extlines.add(line);
-	            System.out.println(line);
 	        }
 	        bufferedReader.close();
 	        fileReader.close();
-		} catch (FileNotFoundException e) {
+		} catch (Exception e) {
 			//major point, cannot continue without, exiting application
-			taskOutput.append("Something went wrong!\n\n");
-			taskOutput.append(e.toString());
-			taskOutput.append("\nExiting evaluation\n");
-			writingLogAndClosing(frame, ini);
-			return;
-		} catch (IOException e) {
-			//major point, cannot continue without, exiting application
-			taskOutput.append("Something went wrong!\n\n");
-			taskOutput.append(e.toString());
-			taskOutput.append("\nExiting evaluation\n");
-			writingLogAndClosing(frame, ini);
+			taskOutput = taskOutput + "Something went wrong!\n\n";
+			System.out.print("Something went wrong!\n\n");
+			taskOutput = taskOutput + e.toString();
+			System.out.print(e.toString());
+			taskOutput = taskOutput + "\nExiting evaluation\n";
+			System.out.print("\nExiting evaluation\n");
+			writingLogAndClosing(ini);
 			return;
 		}
         
@@ -855,10 +831,13 @@ public class AutoRnLog extends JPanel {
 						spectraList.add(new Spectra(lvl1FileList[i].getName(), lvl1FileList[i]));
 					} catch (Exception e) {
 						//major point, cannot continue without, exiting application
-						taskOutput.append("Something went wrong!\n\n");
-	    				taskOutput.append(e.toString());
-	    				taskOutput.append("\nExiting evaluation\n");
-	    				writingLogAndClosing(frame, ini);
+						taskOutput = taskOutput + "Something went wrong!\n\n";
+						System.out.print("Something went wrong!\n\n");
+	    				taskOutput = taskOutput + e.toString();
+	    				System.out.print(e.toString());
+	    				taskOutput = taskOutput + "\nExiting evaluation\n";
+	    				System.out.print("\nExiting evaluation\n");
+	    				writingLogAndClosing(ini);
 	    				return;
 					} 						
 				}
@@ -869,22 +848,23 @@ public class AutoRnLog extends JPanel {
             String pathToNewRefSpec = ini._pathToIniFile.getParent() + "\\RefSpec_" + lvl1dirNew.getName()+ ".ref";
 	        new Spectra(spectraList, ini, pathToNewRefSpec);
 	        
-	        taskOutput.append("All done!\n");
-	        taskOutput.append("Today statistic:\n");
-	        taskOutput.append("Evaluated spectra: " + goodSpecCount + "; flagged: " + flaggedCount + "; low flow: " + lowFlowCount + "; low LT: " + lowLTCount + "; broken: " + brokenCount + "; empty/deleted: " + deleteCount + ".\n\n");
-	        
-	        writingLogAndClosing(frame, ini);
+	        taskOutput = taskOutput + "All done!\n";
+	        System.out.print("All done!\n");
+	        taskOutput = taskOutput + "Today statistic:\n";
+	        System.out.print("Today statistic:\n");
+	        taskOutput = taskOutput + "Evaluated spectra: " + goodSpecCount + "; flagged: " + flaggedCount + "; low flow: " + lowFlowCount + "; low LT: " + lowLTCount + "; broken: " + brokenCount + "; empty/deleted: " + deleteCount + ".\n\n";
+	        System.out.print("Evaluated spectra: " + goodSpecCount + "; flagged: " + flaggedCount + "; low flow: " + lowFlowCount + "; low LT: " + lowLTCount + "; broken: " + brokenCount + "; empty/deleted: " + deleteCount + ".\n\n");
+	        writingLogAndClosing(ini);
 		    return;
 		    
-		} catch (FileNotFoundException e) {
-			taskOutput.append("Something went wrong!\n\n");
-			taskOutput.append(e.toString());
-			taskOutput.append("\nExiting evaluation\n");
-		} catch (IOException e) {
-			taskOutput.append("Something went wrong!\n\n");
-			taskOutput.append(e.toString());
-			taskOutput.append("\nExiting evaluation\n");
-		}
+		} catch (Exception e) {
+			taskOutput = taskOutput + "Something went wrong!\n\n";
+			System.out.print("Something went wrong!\n\n");
+			taskOutput = taskOutput + e.toString();
+			System.out.print(e.toString());
+			taskOutput = taskOutput + "\nExiting evaluation\n";
+			System.out.print("\nExiting evaluation\n");
+		} 
             
     }
 	

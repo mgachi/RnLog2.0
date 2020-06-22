@@ -2214,8 +2214,8 @@ public class RnLog extends JFrame{
 			        		    continue;
 							}
 							
-							//checking if the LT is higher than 60s
-							if (spectraList.get(i).LT < 60) {
+							//checking if the LT is higher than 1700
+							if (spectraList.get(i).LT < 1700) {
 								
 								//moving  Spectra to the new lowLT subfolder
 				        		new File(spectraList.get(i).path.getParent()+ "\\lowLT").mkdirs();
