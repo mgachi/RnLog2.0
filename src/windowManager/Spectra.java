@@ -123,7 +123,7 @@ public class Spectra {
 		        	edge = Integer.parseInt(lines.get(134));
 		        }
 	        }
-	        System.out.println("Read in " + name + " from " + path);
+	        
 	        //line counts to determine if the spectre is broken
 	        linesCount = lines.size();
 		} catch (IOException e) {
@@ -369,7 +369,6 @@ public class Spectra {
     	bw.write("1 LT\r\n");
     	RNIntegral = 0;
     	//write the values as sums of all Spectra in the list
-    	System.out.println("write added values");
     	for(int j=0; j<128; j++) {
     		//RNIntegral += _spectraList.get(j).RNIntegral;
         	int tmp = 0;
@@ -418,7 +417,6 @@ public class Spectra {
     	bw.write("1 LT\r\n");
     	RNIntegral = 0;
     	//write the values as sums of all Spectra in the list
-    	System.out.println("write added values");
     	for(int j=0; j<128; j++) {
     		//RNIntegral += _spectraList.get(j).RNIntegral;
         	int tmp = 0;
@@ -588,7 +586,6 @@ public class Spectra {
 	public void calcEdge(Spectra reference, int minDelta, int maxDelta, int edgeoffset) throws IOException {
 		//sets Edge of a spectrum according to edge in reference spectrum
 		//using calcKreuzKorrelation
-		System.out.println("calc edge of " + this.name);
 		if(this.edge != -1) {
 			//edge already set
 			System.out.println("edge already set at " + this.edge);
@@ -600,7 +597,7 @@ public class Spectra {
 		for (int i = 0; i < kreuzKorrelationen.length; i++) {
 		    maxAt = kreuzKorrelationen[i] > kreuzKorrelationen[maxAt] ? i : maxAt;
 		}
-		System.out.println("changed edge of "+ this.name + " at " + this.edge + " to " + ((maxAt-128)+edgeoffset));
+		//System.out.println("changed edge of "+ this.name + " at " + this.edge + " to " + ((maxAt-128)+edgeoffset));
 		this.setEdge((maxAt-128)+edgeoffset);
 	}
 
@@ -610,12 +607,12 @@ public class Spectra {
 		//for calculating RN1-3
 		int result = 0;
 		if(up<=low) {
-			System.out.println("Lower: " + low + " and Upper: " + up);
+			//System.out.println("Lower: " + low + " and Upper: " + up);
 			JOptionPane.showMessageDialog(null, "Lower noise threshold is higher than the window threshold. Please adjust them in the evaluation settings.", "Error creating .ext file", JOptionPane.INFORMATION_MESSAGE);
 			return -1;
 		}
 		if(low<0 || up<0) {
-			System.out.println("Lower: " + low + " and Upper: " + up);
+			//System.out.println("Lower: " + low + " and Upper: " + up);
 			JOptionPane.showMessageDialog(null, "Lower noise threshold and window threshold are negative. Please adjust them in the evaluation settings.", "Error creating .ext file", JOptionPane.INFORMATION_MESSAGE);
 			return -1;
 		}
