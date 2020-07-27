@@ -140,10 +140,10 @@ public class RnLog extends JFrame{
 	//global holder for the files to evaluate (need global for the SwingWorker)
 	public ArrayList<File> toEvaluate = new ArrayList<File>();
 	//indicators of complicity for the SwingWorkers
-	public boolean isLoadingFilesDone;
 	public boolean isCopyingFilesDone;
 	public boolean isSettingFilesDone;
 	public boolean isSortingExtractFileDone;
+	public boolean isLoadingFilesDone;
 	//indicator of rerunning the continueEval part due to the creation of the ref spectrum
 	public boolean isRefSpecRun = false;
 	public ArrayList<Spectra> suitableSpectra = new ArrayList<Spectra>();
@@ -1920,6 +1920,25 @@ public class RnLog extends JFrame{
 		return results;
 	}
 	
+	//getting all files in the folder, including all subfolders; recursive
+	public void listOfAllFiles(String directoryName, ArrayList<File> files, ArrayList<String> fileNames) {
+	    File directory = new File(directoryName);
+
+	    // Get all files from a directory.
+	    File[] fList = directory.listFiles();
+	    if(fList != null)
+	        for (File file : fList) { 
+	        	//if file -> add to the lists
+	            if (file.isFile()) {
+	                files.add(file);
+	                fileNames.add(file.getName());
+	            //if directory use function recursively 
+	            } else if (file.isDirectory()) {
+	            	listOfAllFiles(file.getAbsolutePath(), files, fileNames);
+	            }
+	        }
+	    }
+	
 	//guides the user through the evaluation
 	//this needed to be splitted into two functions, the first one gets the new spectra, copies them
 	//and tries to set the edge, afterwards, if there are flagged spectra, the user can to flag them manually
@@ -1970,8 +1989,14 @@ public class RnLog extends JFrame{
 			}
 		}
 		
-		try {			
-			//creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
+		//array of choices for the swing worker
+		Object[] options = {"Cancel"};
+		
+		//if it is the rerun due to the creation of the ref spec -> skip this part all together
+		//comparing file names lvl0 and lvl2 folders
+		//all names are compared, as files to evaluate the complement set lvl0\lvl2 is used
+		if (!isRefSpecRun) {	        
+	        //creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
 			class LoadingFiles extends SwingWorker<Void, Void> {
 		        
 				//main task of the worker; executed in background thread		         
@@ -1981,27 +2006,43 @@ public class RnLog extends JFrame{
 		        	//initialize task properties
 		        	isLoadingFilesDone = false;
 		            int progress;
-		            File lvl0Dir = new File(ini.lvl0);
-		            File[] filesInFolder = lvl0Dir.listFiles();
-		            for (int i = 0; i < filesInFolder.length; i++) {
-		            	if (isLoadingFilesDone) {
+		            
+		            //loading lists of ALL files and filenames in the lvl1 dir
+			        ArrayList<File> lvl2Files = new ArrayList<File>();
+			        ArrayList<String> lvl2FileNames = new ArrayList<String>();
+			        listOfAllFiles(ini.lvl2, lvl2Files, lvl2FileNames);
+			        
+			        //loading lists of ALL files and filenames in the lvl0 dir
+			        ArrayList<File> lvl0Files = new ArrayList<File>();
+			        ArrayList<String> lvl0FileNames = new ArrayList<String>();
+			        listOfAllFiles(ini.lvl0, lvl0Files, lvl0FileNames);
+			        
+			        //removing all entries from the lvl0 filename list that already exist in lvl1 dir
+			        //it is assumed that these files are already evaluated
+			        lvl0FileNames.removeAll(lvl2FileNames);
+		            
+		            //cycling over all addition (new) files in lvl0 folder
+			        for (int i = 0; i < lvl0FileNames.size(); i++) {
+			        	if (isLoadingFilesDone) {
 		            		break;
 		            	}
+			        	File currentFile = new File(lvl0+lvl0FileNames.get(i));
+			        	System.out.println(lvl0+lvl0FileNames.get(i));
 						//check if the file is a spectra
-						if (filesInFolder[i].isFile() && checkFilename(filesInFolder[i].getName())) {
-							tempFileList.add(filesInFolder[i]);
+						if (currentFile.isFile() && checkFilename(lvl0FileNames.get(i))) {
+							tempFileList.add(currentFile);
 						}
 						
 						//calculating remaining progress and sending it to GUI
-						progress = (int) ((((double) i+1.0)/(filesInFolder.length))*100.0);
+						progress = (int) ((((double) i+1.0)/(lvl0FileNames.size()))*100.0);
 						System.out.println(progress);
-						setProgress(progress);
+						setProgress(progress);						
 						
 						//search for reference spectrum
-						if (filesInFolder[i].isFile() && filesInFolder[i].getName().contains(".ref")) {
+						if (currentFile.isFile() && lvl0FileNames.get(i).contains(".ref")) {
 							try {
-								System.out.println("Reference spectrum found: " + filesInFolder[i]);
-								RefSpec = new Spectra(filesInFolder[i].getName(), filesInFolder[i]);								
+								System.out.println("Reference spectrum found: " + currentFile);
+								RefSpec = new Spectra(lvl0FileNames.get(i), currentFile);								
 							} catch (Exception e) {
 								System.out.println("could not load reference spectrum");
 								JOptionPane.showMessageDialog(null, "The reference spectrum found in the lvl0 directory is brocken. Please provide a valid one." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
@@ -2035,7 +2076,6 @@ public class RnLog extends JFrame{
 			loadingTask.execute();	
 			
 			//user hit cancel -> aborting operations
-			Object[] options = {"Cancel"};
 		    int n = JOptionPane.showOptionDialog(null,
 		                   "Wait until all files are loaded","Loading files...",
 		                   JOptionPane.PLAIN_MESSAGE,
@@ -2046,72 +2086,32 @@ public class RnLog extends JFrame{
 		    if (n == 0) {
 		    	//stopping SwingWorker 
 		    	loadingTask.done();
-		    	Thread.sleep(150);
+		    	try {
+					Thread.sleep(150);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 		    	tempFileList.clear();
 		    	progressBar.setValue(0);
 		    	progressBar.setString("");
 		    	return;
 		    }
-		    
-			//searching for the spectra in the lvl2 folder
-			File[] EvalFilesInFolder = lvl2Dir.listFiles();
-			for (int i = 0; i < EvalFilesInFolder.length; i++) {
-				//check if the file is a spectra
-				if (EvalFilesInFolder[i].isFile() && checkFilename(EvalFilesInFolder[i].getName())) {
-					evFiles.add(EvalFilesInFolder[i]);
-				}
+			
+			//getting the raw not yet evaluated spectra
+	        toEvaluate = (ArrayList<File>) tempFileList.clone();	
+			//clearing global variable for the next run
+			tempFileList.clear();		
+			
+			//return if all files have low flow or are broken/empty spectra
+			if (toEvaluate.size() == 0) {    				
+				JOptionPane.showMessageDialog(null, "No new files to evaluate are found in the " + lvl2 + " directory!", "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+				progressBar.setString("");
+				progressBar.setValue(0);
+				//reseting the refspec indicator
+			    isRefSpecRun = false;
+				return;    				
 			}
-							
-		} catch (Exception e) {
-			//could not load the spectra
-			JOptionPane.showMessageDialog(null, "Could not read the spectra from lvl0 and lvl2 directories, please specify a correct path in the *.ini file." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-			progressBar.setString("");
-			progressBar.setValue(0);
-			e.printStackTrace();
-			return;
-		}
-		
-		//getting the raw files from the SwingWorker
-		rawFiles = (ArrayList<File>) tempFileList.clone();	
-		//clearing global variable for the next run
-		tempFileList.clear();
-		
-		//compare the two lists, create a new list which contains the new spectra from lvl0 that need to be evaluated
-		Collections.sort(rawFiles, Collections.reverseOrder());
-		Collections.sort(evFiles, Collections.reverseOrder());
-		
-		//if it is the rerun due to the creation of the ref spec -> skip this part all together
-		//if there are no files in lvl2 -> copy all		
-		//if the last file name in lvl0 and lvl2 folders are same -> do nothing
-		//if there are some files in lvl2 -> copy from lvl0 til the name in lvl0 and lvl2 are the same
-		if (!isRefSpecRun) {
-			if(evFiles.isEmpty()) {
-				System.out.println("no files in lvl2 found -> copy all");
-				toEvaluate = (ArrayList<File>) rawFiles.clone();
-			} else {
-				if(rawFiles.get(0).getName().equals(evFiles.get(0).getName())){
-					//no new file
-					JOptionPane.showMessageDialog(null, "The latest spectrum found is " + rawFiles.get(0).getName() + " and it is already evaluated." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-					progressBar.setString("");
-					progressBar.setValue(0);
-					return;
-				} else {
-					System.out.println("copy only new files from lvl0");
-					while(!rawFiles.isEmpty()) {
-						if(rawFiles.get(0).getName().equals(evFiles.get(0).getName())) {
-							break;
-						} else {
-							toEvaluate.add(rawFiles.get(0));
-							rawFiles.remove(0);
-						}				
-					}			
-				}
-			}
-		
-		
-			//clearing the lists
-			rawFiles.clear();
-			evFiles.clear();
 			
 			//double check if the reference spectrum was found
 			if (RefSpec == null) {
@@ -2169,11 +2169,11 @@ public class RnLog extends JFrame{
 		    				
 		    				//moving broken spectra to new folder
 		    				if (spectraList.get(i).linesCount < 2) {
-		    					System.out.print(toEvaluate.get(i).getName() + " is broken/empty. Trying to remove.");
+		    					System.out.print(toEvaluate.get(i).getName() + " is empty file. Trying to remove.");
 		    					//if the file is not empty -> move to the "broken Spectra" subfolder
 			    				//if it is empty -> just delete it
-		    					new File(spectraList.get(i).path.getParent()+ "\\delete").mkdirs();
-		    					copyFile(toEvaluate.get(i), new File(lvl2Dir + "\\delete\\"+ toEvaluate.get(i).getName()));			
+		    					new File(spectraList.get(i).path.getParent()+ "\\empty").mkdirs();
+		    					copyFile(toEvaluate.get(i), new File(lvl2Dir + "\\empty\\"+ toEvaluate.get(i).getName()));			
 								toEvaluate.get(i).delete();
 			    				toEvaluate.remove(i);
 			    				spectraList.remove(i);
@@ -2183,7 +2183,7 @@ public class RnLog extends JFrame{
 		    				
 		    				//moving broken spectra to new folder
 		    				if (spectraList.get(i).linesCount < 135) {
-		    					System.out.print(toEvaluate.get(i).getName() + " is broken/empty. Trying to remove.");
+		    					System.out.print(toEvaluate.get(i).getName() + " is broken spectrum. Trying to remove.");
 		    					//if the file is not empty -> move to the "broken Spectra" subfolder
 			    				//if it is empty -> just delete it
 		    					new File(spectraList.get(i).path.getParent()+ "\\broken").mkdirs();
@@ -2268,8 +2268,7 @@ public class RnLog extends JFrame{
 			copyingTask.execute();		
 			
 			//user hit cancel -> aborting operations
-			Object[] options = {"Cancel"};
-		    int n = JOptionPane.showOptionDialog(null,
+		    n = JOptionPane.showOptionDialog(null,
 		                   "Wait until all files are copied","copying files...",
 		                   JOptionPane.PLAIN_MESSAGE,
 		                   JOptionPane.INFORMATION_MESSAGE,
@@ -2452,7 +2451,6 @@ public class RnLog extends JFrame{
 			settingTask.execute();
 			
 			//user hit cancel -> aborting operations
-			Object[] options = {"Cancel"};
 		    int m = JOptionPane.showOptionDialog(null,
 		                   "Wait until Po edge is set...","setting edge...",
 		                   JOptionPane.PLAIN_MESSAGE,
@@ -2611,9 +2609,10 @@ public class RnLog extends JFrame{
 			}
 			
 			//sorting entries in the final extract file by the measurement time using insertion algorithm 
-            for (int i = 0; i<extlines.size()-1; i++) { 
+            for (int i = 0; i<extlines.size(); i++) { 
 	            String current = extlines.get(i);
-				LocalDateTime currentTime =  LocalDateTime.parse(current.split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));				
+				LocalDateTime currentTime =  LocalDateTime.parse(current.split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));	
+
 				int j = i - 1;
 				while(j >= 0 &&  currentTime.isBefore(LocalDateTime.parse(extlines.get(j).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"))) ) {
 					extlines.set(j+1,extlines.get(j));
@@ -2630,159 +2629,158 @@ public class RnLog extends JFrame{
 			}
 			bw.close();
 		    fileOut.close();
-	/////////////////////////////////////////////
-	//create activity file
-	////////////////////////////////////////////
-	
-	//who created the file
-	progressBar.setString("creating activity file");
-	String evaluator = (String) JOptionPane.showInputDialog(null,"Last evaluated by:",
-            "Creating ACT File",
-            JOptionPane.PLAIN_MESSAGE, null, null, "Your name");
-
-	if(evaluator == null || (evaluator != null && ("".equals(evaluator)))) {
-		progressBar.setValue(0);
-		progressBar.setString("");
-		return;
-	}
-	System.out.println("Evaluator: " + evaluator);
-
-    String actFilename = activity.getName();
-	String points = "1";	
-    //open ext and act file
-	File actFile =activity;
-	try {
-        //open act File
-		fileOut = new FileOutputStream(actFile);
-    	BufferedWriter bw1 = new BufferedWriter(new OutputStreamWriter(fileOut));
-        bw1.write("222-Radon activities calculated with " + SoftwareVersion + "\r\n"+ "\r\n");
-        bw1.write("Evaluated by: " + evaluator + " on "); 
-        bw1.write(java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))); 
-        bw1.write("\r\n");
-        bw1.write("Used parameters \r\n");
-        String Method="Stockburger";
-        bw1.write("Method	    : " + Method + "\r\n");
-        bw1.write("Source File : " + extract.getPath() + "\r\n");
-        bw1.write("Solid Angle : " + String.valueOf(ini.solidangle) + "\r\n");
-        bw1.write("Disequil.   : " + String.valueOf(ini.disequilibrium) + "\r\n");
-        bw1.write("Flux Offset : " + String.valueOf(ini.fluxoffset) + "\r\n");
-        bw1.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
-        bw1.write("Format: \r\n");
-        bw1.write("Stoptime; Activity [Bq/m3]; Ac[dps]; Ac/dt; Total; Window; Edge; temp1[C]; temp2[C]; temp3[C]; Pressure[mbar]; LifeTime[sec]; Flux[m3/s]; ID \r\n");
-        
-        //split extlines to get rid of duplicates or  missing values
-        ArrayList<ArrayList<String>> splittedExtlines = new ArrayList<ArrayList<String>>();
-        ArrayList<ArrayList<String>> splittedActlines = new ArrayList<ArrayList<String>>();
-        ArrayList<String> tmpStringList = new ArrayList<String>();
-
-        //save positions where to split
-        // 0-> dont split; 1-> split; 2-> delete 
-        int[] flag = new int[extlines.size()];
-        System.out.println(spectraList.size());
-        flag[0] = 0;
-        tmpStringList.add(extlines.get(0));
-        
-        for (int i = 1; i< extlines.size(); i++) {
-        	
-        	LocalDateTime current =  LocalDateTime.parse(extlines.get(i).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));
-            LocalDateTime last = LocalDateTime.parse(extlines.get(i-1).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));
-            long difference = Duration.between(last,current).toMinutes();
-            
-        	if(difference > 30 ) {
-        		//if (Datetime_last - Datetime_current) > 30min
-        		flag[i] = 1; //split here
-        		System.out.println("split, diff is " + difference + " min");
-        		splittedExtlines.add((ArrayList<String>) tmpStringList.clone());
-        		tmpStringList.clear();
-        		tmpStringList.add(extlines.get(i));
-        		System.out.println("new Array of extLines " + extlines.get(i));
-        	}
-	        	else if(difference < 1 ) {
-	        		//if (Datetime_last - Datetime_current) < 1min
-	        		flag[i] = 2; //remove this
-	        		System.out.println("remove " + difference);
-	        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
-	        		continue;
-	        	}
-	        	else {
-	        		flag[i] = 0;
-	        		tmpStringList.add(extlines.get(i));
-	        		System.out.println("add " + extlines.get(i));
-	        	}		        	
-        }
-        
-        splittedExtlines.add((ArrayList<String>) tmpStringList.clone());
-        tmpStringList.clear();
-		
-        //calculating the values with Stockburger
-        System.out.println("Calculating Stockburger");
-        for(int x = 0; x < splittedExtlines.size(); x++) {	 
-        	tmpStringList = (ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone();
-        	if (tmpStringList.get(0) == "") {
-        		continue;
-        	}
-        	
-        	splittedActlines.add((ArrayList<String>) tmpStringList.clone());
-        }
-        tmpStringList.clear();
-        
-        //gather, fuse and fill if variable "fill"  == true
-        Boolean fill = false;
-        if(ini.fill == 1) fill = true;
-        if(!fill || splittedActlines.size() == 1) {
-        	System.out.println("Don't need to fill up");
-        	//just write the results into the file if no filler is given or only one block was created
-	        for(int i=0; i<splittedActlines.size(); i++) {
-	        	for(int k = 0; k < splittedActlines.get(i).size() ; k++) {
-	        		bw1.write(splittedActlines.get(i).get(k) + "\r\n");
-	        	}
-	        }
-        } else {
-        	//write the results into the file but every time a new block starts, fill it with the correct date and the filler
-        	System.out.println("Fill Up with " + ini.filler);
-        	for(int i = 0; i < splittedActlines.size() ; i++) {
-        		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
-        			bw1.write(splittedActlines.get(i).get(k) + "\r\n");
-        		}
-        		try {
-        			//taking last line form the current peace and first line from the next piece
-        			//calculate time difference and number of entries to fill
-        			String last = splittedActlines.get(i).get(splittedActlines.get(i).size()-1);
-        			String next = splittedActlines.get(i+1).get(0);
-        			ArrayList<String> fillingStrings = getDateTimeBetween(last, next);
-        			for (int l = 0; l < fillingStrings.size(); l++) {
-        				bw1.write(fillingStrings.get(l)+ ";" + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + "\r\n");
-        				}
-        		} catch (Exception e2) {
-        			//could not access splittedActlines.get(i+1) -> filling done
-        			break;
-        		}
-        		
-        	}
-        }
-        bw1.close();
-    	JOptionPane.showMessageDialog(null, "Successfully created " + activity.getName() , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
-    	progressBar.setString("");
-    	progressBar.setValue(0);
-    	
-    	//clear the flagged arrays for the next iteration
-		flaggedIdx.clear();
-		flagged.clear();
-		tmpList.clear();
-		flag = null;
-		
-    	
-	} catch (Exception e3) {
-    	progressBar.setString("");
-    	progressBar.setValue(0);
-		e3.printStackTrace();
-	}
-	
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+			/////////////////////////////////////////////
+			//create activity file
+			////////////////////////////////////////////
+			
+			//who created the file
+			progressBar.setString("creating activity file");
+			String evaluator = (String) JOptionPane.showInputDialog(null,"Last evaluated by:",
+			        "Creating ACT File",
+			        JOptionPane.PLAIN_MESSAGE, null, null, "Your name");
+			
+			if(evaluator == null || (evaluator != null && ("".equals(evaluator)))) {
+				progressBar.setValue(0);
+				progressBar.setString("");
+				return;
+			}
+			System.out.println("Evaluator: " + evaluator);
+			
+			String actFilename = activity.getName();
+			String points = "1";	
+			//open ext and act file
+			File actFile =activity;
+			try {
+			    //open act File
+				fileOut = new FileOutputStream(actFile);
+				BufferedWriter bw1 = new BufferedWriter(new OutputStreamWriter(fileOut));
+			    bw1.write("222-Radon activities calculated with " + SoftwareVersion + "\r\n"+ "\r\n");
+			    bw1.write("Evaluated by: " + evaluator + " on "); 
+			    bw1.write(java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))); 
+			    bw1.write("\r\n");
+			    bw1.write("Used parameters \r\n");
+			    String Method="Stockburger";
+			    bw1.write("Method	    : " + Method + "\r\n");
+			    bw1.write("Source File : " + extract.getPath() + "\r\n");
+			    bw1.write("Solid Angle : " + String.valueOf(ini.solidangle) + "\r\n");
+			    bw1.write("Disequil.   : " + String.valueOf(ini.disequilibrium) + "\r\n");
+			    bw1.write("Flux Offset : " + String.valueOf(ini.fluxoffset) + "\r\n");
+			    bw1.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
+			    bw1.write("Format: \r\n");
+			    bw1.write("Stoptime; Activity [Bq/m3]; Ac[dps]; Ac/dt; Total; Window; Edge; temp1[C]; temp2[C]; temp3[C]; Pressure[mbar]; LifeTime[sec]; Flux[m3/s]; ID \r\n");
+			    
+			    //split extlines to get rid of duplicates or  missing values
+			    ArrayList<ArrayList<String>> splittedExtlines = new ArrayList<ArrayList<String>>();
+			    ArrayList<ArrayList<String>> splittedActlines = new ArrayList<ArrayList<String>>();
+			    ArrayList<String> tmpStringList = new ArrayList<String>();
+			
+			    //save positions where to split
+			    // 0-> dont split; 1-> split; 2-> delete 
+			    int[] flag = new int[extlines.size()];
+			    flag[0] = 0;
+			    tmpStringList.add(extlines.get(0));
+			    
+			    for (int i = 1; i< extlines.size(); i++) {
+			    	
+			    	LocalDateTime current =  LocalDateTime.parse(extlines.get(i).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));
+			        LocalDateTime last = LocalDateTime.parse(extlines.get(i-1).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));
+			        long difference = Duration.between(last,current).toMinutes();
+			        
+			    	if(difference > 30 ) {
+			    		//if (Datetime_last - Datetime_current) > 30min
+			    		flag[i] = 1; //split here
+			    		System.out.println("split, diff is " + difference + " min");
+			    		splittedExtlines.add((ArrayList<String>) tmpStringList.clone());
+			    		tmpStringList.clear();
+			    		tmpStringList.add(extlines.get(i));
+			    		System.out.println("new Array of extLines " + extlines.get(i));
+			    	}
+			        	else if(difference < 1 ) {
+			        		//if (Datetime_last - Datetime_current) < 1min
+			        		flag[i] = 2; //remove this
+			        		System.out.println("remove " + difference);
+			        		System.out.println("don't count this line (maybe duplicate) " + extlines.get(i));
+			        		continue;
+			        	}
+			        	else {
+			        		flag[i] = 0;
+			        		tmpStringList.add(extlines.get(i));
+			        		System.out.println("add " + extlines.get(i));
+			        	}		        	
+			    }
+			    
+			    splittedExtlines.add((ArrayList<String>) tmpStringList.clone());
+			    tmpStringList.clear();
+				
+			    //calculating the values with Stockburger
+			    System.out.println("Calculating Stockburger");
+			    for(int x = 0; x < splittedExtlines.size(); x++) {	 
+			    	tmpStringList = (ArrayList<String>) calcStockburger(splittedExtlines.get(x), Integer.parseInt(points)).clone();
+			    	if (tmpStringList.get(0) == "") {
+			    		continue;
+			    	}
+			    	
+			    	splittedActlines.add((ArrayList<String>) tmpStringList.clone());
+			    }
+			    tmpStringList.clear();
+			    
+			    //gather, fuse and fill if variable "fill"  == true
+			    Boolean fill = false;
+			    if(ini.fill == 1) fill = true;
+			    if(!fill || splittedActlines.size() == 1) {
+			    	System.out.println("Don't need to fill up");
+			    	//just write the results into the file if no filler is given or only one block was created
+			        for(int i=0; i<splittedActlines.size(); i++) {
+			        	for(int k = 0; k < splittedActlines.get(i).size() ; k++) {
+			        		bw1.write(splittedActlines.get(i).get(k) + "\r\n");
+			        	}
+			        }
+			    } else {
+			    	//write the results into the file but every time a new block starts, fill it with the correct date and the filler
+			    	System.out.println("Fill Up with " + ini.filler);
+			    	for(int i = 0; i < splittedActlines.size() ; i++) {
+			    		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
+			    			bw1.write(splittedActlines.get(i).get(k) + "\r\n");
+			    		}
+			    		try {
+			    			//taking last line form the current peace and first line from the next piece
+			    			//calculate time difference and number of entries to fill
+			    			String last = splittedActlines.get(i).get(splittedActlines.get(i).size()-1);
+			    			String next = splittedActlines.get(i+1).get(0);
+			    			ArrayList<String> fillingStrings = getDateTimeBetween(last, next);
+			    			for (int l = 0; l < fillingStrings.size(); l++) {
+			    				bw1.write(fillingStrings.get(l)+ ";" + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + "\r\n");
+			    				}
+			    		} catch (Exception e2) {
+			    			//could not access splittedActlines.get(i+1) -> filling done
+			    			break;
+			    		}
+			    		
+			    	}
+			    }
+			    bw1.close();
+				JOptionPane.showMessageDialog(null, "Successfully created " + activity.getName() , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
+				progressBar.setString("");
+				progressBar.setValue(0);
+				
+				//clear the flagged arrays for the next iteration
+				flaggedIdx.clear();
+				flagged.clear();
+				tmpList.clear();
+				flag = null;
+				
+				
+			} catch (Exception e3) {
+				progressBar.setString("");
+				progressBar.setValue(0);
+				e3.printStackTrace();
+			}
+			
+				} catch (FileNotFoundException e) {
+					e.printStackTrace();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 }
 	
 	public boolean checkFilename(String Filename) {
