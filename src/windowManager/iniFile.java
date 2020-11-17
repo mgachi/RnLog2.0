@@ -36,7 +36,7 @@ public class iniFile {
 	public int Edgeoffset = 96;
 	public double fluxslope = 1.0;             
 	public double fluxoffset = 0;
-	public double fluxthreshold = 0;
+	public double fluxthreshold = 100;
 	public String id = "1_HD";
 	public String decimalchr = ".";
 	public double solidangle = 0.2650;          
