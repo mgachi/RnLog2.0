@@ -21,29 +21,18 @@ import javax.swing.border.LineBorder;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
-import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
 import java.awt.Color;
 import javax.swing.JRadioButton;
 import java.awt.SystemColor;
-import java.awt.Toolkit;
-import java.awt.Window;
 
 import javax.swing.JProgressBar;
-import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
 import javax.swing.ButtonGroup;
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
-import javax.swing.InputMap;
 import javax.swing.JToggleButton;
-import javax.swing.KeyStroke;
-import javax.swing.ProgressMonitor;
 import javax.swing.SwingConstants;
 import javax.swing.SwingWorker;
-import javax.swing.Timer;
 import javax.swing.JFileChooser;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
@@ -57,7 +46,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.net.URISyntaxException;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
@@ -65,29 +53,13 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
 import java.awt.event.ActionEvent;
 import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JDialog;
-import javax.swing.JTable;
-import javax.swing.event.ChangeListener;
-//import javax.xml.ws.Service;
-import javax.swing.event.ChangeEvent;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.awt.Window.Type;
 
 public class RnLog extends JFrame{
 				
@@ -123,7 +95,6 @@ public class RnLog extends JFrame{
 	//the currently selected spectrum of the list
 	public int selectedSpecIdx = 0;
 	public Spectra RefSpec;
-	private JTable table;
 	public String SoftwareVersion = "RnLog 2.0";
 	Thread TLiveMode;
 	//for continue evaluation mode
@@ -871,7 +842,7 @@ public class RnLog extends JFrame{
 		mntmNewMenuItem_3.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				if (ini._pathToIniFile == null) {
-					iniFile ini = new iniFile();
+					ini = new iniFile();
 					} 
 					EvalIniDialog dialog = new EvalIniDialog(ini);
 					dialog.setVisible(true);
@@ -897,9 +868,9 @@ public class RnLog extends JFrame{
 				//if no RefSpec was loaded among other files,
 				//checking if all spectra already have the edge determined
 				if (RefSpec == null) {
-					for(int i=0; i<spectraList.size(); i++) {
+					for (Spectra element : spectraList) {
 						//if there are files with no edge user is asked to provide a RefSpec
-						if (spectraList.get(i).edge == -1) {
+						if (element.edge == -1) {
 							
 							int dialogButton = JOptionPane.YES_NO_OPTION;
 				        	int dialogResult = JOptionPane.showConfirmDialog (null, "Not all selected spectra have the Po214-edge set. To continue you have to provide a reference spectrum (.ref). Would you like to load one?" ,"Load reference spectrum", dialogButton);
@@ -946,9 +917,6 @@ public class RnLog extends JFrame{
 					}
 				}
 				
-				
-				
-				
 				JFileChooser fileChooser = new JFileChooser(spectraList.get(0).path.getParent()); 
 				//name of the file chooser window
 				fileChooser.setDialogTitle("Save extract file (.txt) as:");
@@ -974,7 +942,6 @@ public class RnLog extends JFrame{
 				    	//write first line
 				        bw.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \r\n");
 				        //loop though the selected spectra, see if they need to be flagged
-				        int[] flaggedIdx = new int[spectraList.size()];
 				        for(int i=0; i<spectraList.size(); i++) {
 				        	
 				        	//checking if the flux is higher than the flux threshold
@@ -2389,7 +2356,8 @@ public class RnLog extends JFrame{
 			tmpList.clear();
 			spectraList.clear();
 			
-			
+			//variable to check if all spectra have the edge set
+			boolean spectraWithNoEdge = false;
 			
 			//Get all files from the lvl2 directory
 			//extract file will be calculated for all files in lvl2 (except for subfolders)
@@ -2402,13 +2370,45 @@ public class RnLog extends JFrame{
 		    		if (file.isFile() && checkFilename(file.getName())) {
 		    			try {
 							spectraList.add(new Spectra(file.getName(), file));
+							
+							//checking if Po edge is set, if no -> skip this spectrum
+							if (spectraList.get(spectraList.size() - 1).edge == -1) {
+								System.out.print(spectraList.get(spectraList.size() - 1) + " has no edge. Trying to remove.");
+								//if the file is not empty -> move to the "broken Spectra" subfolder
+			    				//if it is empty -> just delete it
+								new File(file.getParent()+ "\\noEdge").mkdirs();
+								copyFile(file, new File(file.getParent()+ "\\noEdge\\"+ file.getName()));		
+			    				spectraList.remove(spectraList.size() - 1);
+								file.delete();
+			    				
+								spectraWithNoEdge = true;
+								continue;
+							}
+							
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
 					}
 		        }
-		    }
+		    }	
+		    
+		  //message to user that there were spectra with no edge
+			if (spectraWithNoEdge) {
+				JOptionPane.showMessageDialog(null, "There were some spectra with no Po-edge in lvl2 folder!\n Please set Po-edge if you want them to be considered for the evaluation.", "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);	
+			}
 			
+			//if there are no suitable spectra in lvl2 folder, exit evaluation
+			if (spectraList.size() == 0) {
+				JOptionPane.showMessageDialog(null, "There are no suitable spectra in lvl2 folder for the further evaluation.", "Continue evaluation", JOptionPane.ERROR_MESSAGE);
+				progressBar.setString("");
+				progressBar.setValue(0);
+				
+				//clear the flagged arrays for the next iteration
+				flaggedIdx.clear();
+				flagged.clear();
+				tmpList.clear();				
+				return;
+			}
 		    
 		    //creating directories for the extract and activity files
 			new File(ini.extractFileFolder).mkdirs();
@@ -2449,20 +2449,11 @@ public class RnLog extends JFrame{
 			} catch (IOException e2) {
 			e2.printStackTrace();
 			}
-		    
-		    
+		    		    
 			//extracting information from spectra and adding it to string array
 			ArrayList<String> extlines = new ArrayList<String>();
-			//variable to check if all spectra have the edge set
-			boolean spectraWithNoEdge = false;
 			
-			for (int i=0; i<spectraList.size(); i++) {		
-				
-				//checking if Po edge is set, if no -> skip this spectrum
-				if (spectraList.get(i).edge == -1) {
-					spectraWithNoEdge = true;
-					continue;
-				}
+			for (int i=0; i<spectraList.size(); i++) {
 				
 				extlines.add(spectraList.get(i).datetime + "; " +
 				        spectraList.get(i).LT + "; " +
@@ -2507,25 +2498,6 @@ public class RnLog extends JFrame{
 				        spectraList.get(i).monitor+ "; \r\n");
 			}
 			
-			//message to user that there were spectra with no edge
-			if (spectraWithNoEdge) {
-				JOptionPane.showMessageDialog(null, "There were some spectra with no Po-edge in lvl2 folder!\n Please set Po-edge if you want them to be considered for the evaluation.", "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);	
-			}
-			
-			//if there are no suitable spectra in lvl2 folder, exit evaluation
-			if (extlines.size() == 0) {
-				JOptionPane.showMessageDialog(null, "There are no suitable spectra in lvl2 folder for the further evaluation.", "Continue evaluation", JOptionPane.ERROR_MESSAGE);
-				progressBar.setString("");
-				progressBar.setValue(0);
-				
-				//clear the flagged arrays for the next iteration
-				flaggedIdx.clear();
-				flagged.clear();
-				tmpList.clear();
-				
-				return;
-			}
-			
 			//sorting entries in the final extract file by the measurement time using insertion algorithm 
             for (int i = 0; i<extlines.size(); i++) { 
 	            String current = extlines.get(i);
@@ -2564,8 +2536,9 @@ public class RnLog extends JFrame{
 			}
 			System.out.println("Evaluator: " + evaluator);
 			
-			String points = "1";
-			
+			//number of previous and next spectra that are considered for the evaluation
+			//hardcoded value
+			String points = "1";			
 			
 			try {
 			    //writing activity file
