@@ -22,7 +22,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class AutoRnLog{	
+public class AutoRnLog_linux{	
 	
 	public static String SoftwareVersion = "AutoRnLog 0.1";
 	public static String taskOutput = "";	
@@ -266,7 +266,7 @@ public class AutoRnLog{
     private static void writingLogAndClosing(iniFile ini) {//creating log file for the current run
         //log file is saved in the lvl1 dir
     	File lvl1Dir = new File(ini.lvl1);
-        File logFile = new File(ini.lvl1 + "\\LogFile_" + lvl1Dir.getName() + ".txt");
+        File logFile = new File(ini.lvl1 + "/LogFile_" + lvl1Dir.getName() + ".txt");
         FileOutputStream fileOut;
 		try {
 			fileOut = new FileOutputStream(logFile, true);
@@ -350,7 +350,7 @@ public class AutoRnLog{
                 	//file found -> move it to the current lvl0 folder
 					if (iniFolderList[i].getName().endsWith(".ref")) {	
 						try {
-							copyFile(iniFolderList[i], new File(ini.lvl0+"\\" + iniFolderList[i].getName()));
+							copyFile(iniFolderList[i], new File(ini.lvl0+"/" + iniFolderList[i].getName()));
 						} catch (IOException e) {
 							taskOutput = taskOutput + "\nSomething went wrong!\n\n";
 							System.out.print("\nSomething went wrong!\n\n");
@@ -409,7 +409,7 @@ public class AutoRnLog{
 			if (lvl0FileNames.get(i).endsWith(".ref")) {
 				try {
 					System.out.println("Reference spectrum found: " + ini.lvl0 + lvl0FileNames.get(i));
-					File refSpecFile = new File(ini.lvl0 + "\\" + lvl0FileNames.get(i)); 
+					File refSpecFile = new File(ini.lvl0 + "/" + lvl0FileNames.get(i)); 
 					RefSpec = new Spectra(refSpecFile.getName(), refSpecFile);								
 				} catch (Exception e) {
 					//major point, cannot continue without, exiting application
@@ -431,8 +431,8 @@ public class AutoRnLog{
 			} else {
 				try {
 					//moving file to lvl1 dir and recognizing it as spectrum
-					File currentSpectrum = new File(ini.lvl0 + "\\" + lvl0FileNames.get(i));
-					File destinationSpectrum = new File(ini.lvl1 + "\\" + lvl0FileNames.get(i));
+					File currentSpectrum = new File(ini.lvl0 + "/" + lvl0FileNames.get(i));
+					File destinationSpectrum = new File(ini.lvl1 + "/" + lvl0FileNames.get(i));
     				copyFile(currentSpectrum, destinationSpectrum);   
     				goodSpecCount++;
     				    				
@@ -481,8 +481,8 @@ public class AutoRnLog{
 				//moving empty spectra file  to delete folder
 				if (spectraList.get(i).linesCount < 2) {
 					System.out.print(spectraList.get(i).name + " is empty. Trying to remove.");
-					new File(ini.lvl1+ "\\delete").mkdirs();
-					copyFile(lvl1FileList.get(i), new File(ini.lvl1 + "\\delete\\"+ lvl1FileList.get(i).getName()));					
+					new File(ini.lvl1+ "/delete").mkdirs();
+					copyFile(lvl1FileList.get(i), new File(ini.lvl1 + "/delete/"+ lvl1FileList.get(i).getName()));					
 					File file = new File(lvl1FileList.get(i).getPath());
 	    		    file.delete();
 	    		    lvl1FileList.remove(i);
@@ -495,8 +495,8 @@ public class AutoRnLog{
 				//moving broken spectra to broken folder
 				if (spectraList.get(i).linesCount < 135) {
 					System.out.print(lvl1FileList.get(i).getName() + " is broken. Trying to remove.");
-					new File(ini.lvl1+ "\\broken").mkdirs();
-					copyFile(lvl1FileList.get(i), new File(ini.lvl1 + "\\broken\\"+ lvl1FileList.get(i).getName()));			
+					new File(ini.lvl1+ "/broken").mkdirs();
+					copyFile(lvl1FileList.get(i), new File(ini.lvl1 + "/broken/"+ lvl1FileList.get(i).getName()));			
 					lvl1FileList.get(i).delete();
 					lvl1FileList.remove(i);
 					spectraList.remove(i);
@@ -508,8 +508,8 @@ public class AutoRnLog{
 				//checking if the flux is higher than the flux threshold and moving them to lowFlux subfolder
 				if (spectraList.get(i).ADC1 < ini.fluxthreshold) {
 					System.out.println("Flux is too low: " + spectraList.get(i).ADC1 + ". Trying to remove.");
-					new File(ini.lvl1+ "\\lowFlux").mkdirs();
-					copyFile(lvl1FileList.get(i), new File(ini.lvl1 + "\\lowFlux\\"+ lvl1FileList.get(i).getName()));			
+					new File(ini.lvl1+ "/lowFlux").mkdirs();
+					copyFile(lvl1FileList.get(i), new File(ini.lvl1 + "/lowFlux/"+ lvl1FileList.get(i).getName()));			
 					lvl1FileList.get(i).delete();
 					lvl1FileList.remove(i);
 					spectraList.remove(i);
@@ -521,8 +521,8 @@ public class AutoRnLog{
 				//checking if the LT is higher than 1700s and moving them to lowFlux subfolder
 				if (spectraList.get(i).LT < 1700) {
 					System.out.println("LT is too low: " + spectraList.get(i).LT + ". Trying to remove.");
-					new File(ini.lvl1+ "\\lowLT").mkdirs();
-					copyFile(lvl1FileList.get(i), new File(ini.lvl1 + "\\lowLT\\"+ lvl1FileList.get(i).getName()));			
+					new File(ini.lvl1+ "/lowLT").mkdirs();
+					copyFile(lvl1FileList.get(i), new File(ini.lvl1 + "/lowLT/"+ lvl1FileList.get(i).getName()));			
 					lvl1FileList.get(i).delete();
 					lvl1FileList.remove(i);
 					spectraList.remove(i);
@@ -558,8 +558,8 @@ public class AutoRnLog{
 						spectraList.get(i).setEdge(ini.Edgeoffset);
 						spectraList.remove(i);
 						//moving  Spectra to the new flagged subfolder
-		        		new File(lvl1FileList.get(i).getParent()+ "\\flagged").mkdirs();   
-		        		File tmpFlagged = new File(lvl1FileList.get(i).getParent()+ "\\flagged\\" + lvl1FileList.get(i).getName());
+		        		new File(lvl1FileList.get(i).getParent()+ "/flagged").mkdirs();   
+		        		File tmpFlagged = new File(lvl1FileList.get(i).getParent()+ "/flagged/" + lvl1FileList.get(i).getName());
 		        		copyFile(lvl1FileList.get(i), tmpFlagged);
 		        		
 		        		//deleting file from the lvl1 directory if flagged
@@ -619,7 +619,7 @@ public class AutoRnLog{
 					        spectraList.get(i).Counter1Offset+ "; "+
 					        spectraList.get(i).Counter2Slope+ "; "+
 					        spectraList.get(i).Counter2Offset+ "; "+
-					        spectraList.get(i).monitor+ "; \r\n");
+					        spectraList.get(i).monitor+ "; \n");
 	        	}
 			}
         }	    		
@@ -652,8 +652,8 @@ public class AutoRnLog{
 		String prefixActivity = lvl0Dir.getName();
 		
 		//creating new activity and extract files
-		File extract = new File(ini.extractFileFolder + "\\" + prefixExtract + ".txt");
-		File activity = new File(ini.activityFileFolder + "\\" + prefixActivity + ".act");
+		File extract = new File(ini.extractFileFolder + "/" + prefixExtract + ".txt");
+		File activity = new File(ini.activityFileFolder + "/" + prefixActivity + ".act");
 		
 		
         FileOutputStream fileOut;
@@ -663,7 +663,7 @@ public class AutoRnLog{
 			BufferedWriter extractWriter = new BufferedWriter(new OutputStreamWriter(fileOut));
 			
 			//adding header to the new extract file			
-			extractWriter.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \r\n");
+			extractWriter.write("Date Time; Lifetime;ADC1; StdADC1; T1; StdT1;T2; StdT2;T3; StdT3;Rn1;Rn2;Rn3;Rn4;ADC2; StdADC2; ADC3; StdADC3; Counter1;Counter2;FluxSlope;FluxOffset;ADC2Slope;ADC2Offset;ADC3Slope;ADC3Offset;Temp1Slope;Temp1Offset;Temp2Slope;Temp2Offset;Temp3Slope;Temp3Offset;Counter1Slope;Counter1Offset;Counter2Slope;Counter2Offset;ID \n");
 			
 			//adding lines from all spectra in good spectra in lvl1 folder
 			for (int i=0; i<extlines.size(); i++) {
@@ -766,21 +766,21 @@ public class AutoRnLog{
 			fileOut = new FileOutputStream(activity);
 			BufferedWriter bw1 = new BufferedWriter(new OutputStreamWriter(fileOut));
 			//activity header
-	        bw1.write("222-Radon activities calculated with " + SoftwareVersion + "\r\n"+ "\r\n");
+	        bw1.write("222-Radon activities calculated with " + SoftwareVersion + "\n"+ "\n");
 	        bw1.write("Evaluated by: AutoRnLog on "); 
 	        bw1.write(java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))); 
-	        bw1.write("\r\n");
-	        bw1.write("Used parameters \r\n");
+	        bw1.write("\n");
+	        bw1.write("Used parameters \n");
 	        //used method
 	        String Method="Stockburger";
-	        bw1.write("Method	    : " + Method + "\r\n");
-	        bw1.write("Source File : " + extract.getPath() + "\r\n");
-	        bw1.write("Solid Angle : " + String.valueOf(ini.solidangle) + "\r\n");
-	        bw1.write("Disequil.   : " + String.valueOf(ini.disequilibrium) + "\r\n");
-	        bw1.write("Flux Offset : " + String.valueOf(ini.fluxoffset) + "\r\n");
-	        bw1.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\r\n"+"\r\n");	
-	        bw1.write("Format: \r\n");
-	        bw1.write("Stoptime; Activity [Bq/m3]; Ac[dps]; Ac/dt; Total; Window; Edge; temp1[C]; temp2[C]; temp3[C]; Pressure[mbar]; LifeTime[sec]; Flux[m3/s]; ID \r\n");
+	        bw1.write("Method	    : " + Method + "\n");
+	        bw1.write("Source File : " + extract.getPath() + "\n");
+	        bw1.write("Solid Angle : " + String.valueOf(ini.solidangle) + "\n");
+	        bw1.write("Disequil.   : " + String.valueOf(ini.disequilibrium) + "\\n");
+	        bw1.write("Flux Offset : " + String.valueOf(ini.fluxoffset) + "\n");
+	        bw1.write("Flux Slope  : " + String.valueOf(ini.fluxslope) + "\n"+"\n");	
+	        bw1.write("Format: \n");
+	        bw1.write("Stoptime; Activity [Bq/m3]; Ac[dps]; Ac/dt; Total; Window; Edge; temp1[C]; temp2[C]; temp3[C]; Pressure[mbar]; LifeTime[sec]; Flux[m3/s]; ID \n");
 	        
 	        //gather, fuse and fill if variable "fill"  == true
 	        Boolean fill = false;
@@ -790,14 +790,14 @@ public class AutoRnLog{
 	        if(!fill || splittedActlines.size() == 1) {
 		        for(int i=0; i<splittedActlines.size(); i++) {
 		        	for(int k = 0; k < splittedActlines.get(i).size() ; k++) {
-		        		bw1.write(splittedActlines.get(i).get(k) + "\r\n");
+		        		bw1.write(splittedActlines.get(i).get(k) + "\n");
 		        	}
 		        }
 	        } else {
 	        	//write the results into the file but every time a new block starts, fill it with the correct date and the filler
 	        	for(int i = 0; i < splittedActlines.size() ; i++) {
 	        		for(int k = 0; k < splittedActlines.get(i).size(); k++) {
-	        			bw1.write(splittedActlines.get(i).get(k) + "\r\n");
+	        			bw1.write(splittedActlines.get(i).get(k) + "\n");
 	        		}
 	        		try {
 	        			//taking last line form the current section and first line from the next section
@@ -806,7 +806,7 @@ public class AutoRnLog{
 	        			String next = splittedActlines.get(i+1).get(0);
 	        			ArrayList<String> fillingStrings = getDateTimeBetween(last, next);
 	        			for (int l = 0; l < fillingStrings.size(); l++) {
-	        				bw1.write(fillingStrings.get(l)+ ";" + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + "\r\n");
+	        				bw1.write(fillingStrings.get(l)+ ";" + ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + ";"+ ini.filler + "\n");
 	        				}
 	        		} catch (Exception e2) {
 	        			//could not access splittedActlines.get(i+1) -> filling done

@@ -26,12 +26,8 @@ public class iniFile {
 	public int port = 1;
 	public int thres1 = 15;                
 	public int thres2 = 25;                 
-	public int thres3 = 50;
-	public int thres4 = 50;
-	public int thres5 = 50;
-	public int thres6 = 50;
-	public int thres7 = 35;
-	public int thres8 = 105;
+	public int thres3 = 10;
+	public int thres4 = 10;
 	public int invl = 1800;
 	public int Edgeoffset = 96;
 	public double fluxslope = 1.0;             
@@ -52,8 +48,8 @@ public class iniFile {
 	public double HoenFluxChannel = 0;         
 	public String IP = "192.168.0.20";
 	public int Fluxchannel = 1;
-	public int LowerFlagThres=1;
-	public int UpperFlagThres=2;
+	public int LowerFlagThres=3;
+	public int UpperFlagThres=3;
 	public File _pathToIniFile;
 	//decide wether to fill up the activity file for missing values
 	//0=false
@@ -173,10 +169,6 @@ public class iniFile {
         		case "thres2": thres2 = Integer.parseInt(lines.get(i).split("=")[1]);break;
         		case "thres3": thres3 = Integer.parseInt(lines.get(i).split("=")[1]);break;
         		case "thres4": thres4 = Integer.parseInt(lines.get(i).split("=")[1]);break;
-        		case "thres5": thres5 = Integer.parseInt(lines.get(i).split("=")[1]);break;
-        		case "thres6": thres6 = Integer.parseInt(lines.get(i).split("=")[1]);break;
-        		case "thres7": thres7 = Integer.parseInt(lines.get(i).split("=")[1]);break;
-        		case "thres8": thres8 = Integer.parseInt(lines.get(i).split("=")[1]);break;
         		case "invl": invl = Integer.parseInt(lines.get(i).split("=")[1]);break;
         		case "Edgeoffset": Edgeoffset = Integer.parseInt(lines.get(i).split("=")[1]);break;
         		case "fluxslope": fluxslope = Double.parseDouble(lines.get(i).split("=")[1]);break;
@@ -378,10 +370,6 @@ public class iniFile {
         bw.write("thres2=" + thres2 + "\r\n");
         bw.write("thres3=" + thres3 + "\r\n");
         bw.write("thres4=" + thres4 + "\r\n");
-        bw.write("thres5=" + thres5 + "\r\n");
-        bw.write("thres6=" + thres6 + "\r\n");
-        bw.write("thres7=" + thres7 + "\r\n");
-        bw.write("thres8=" + thres8 + "\r\n");
         bw.write("invl=" + invl + "\r\n");
         bw.write("Edgeoffset=" + Edgeoffset + "\r\n");
         bw.write("fluxslope=" + fluxslope + "\r\n");
