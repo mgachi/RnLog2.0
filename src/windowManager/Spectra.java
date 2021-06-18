@@ -357,6 +357,7 @@ public class Spectra {
 		T2 = _spectraList.get(0).T2; 				T2StD = _spectraList.get(0).T2StD;
 		T3 = _spectraList.get(0).T3; 				T3StD = _spectraList.get(0).T3StD;
 		counter1 = _spectraList.get(0).counter1; 	counter2 = _spectraList.get(0).counter2;
+		monitor = _spectraList.get(0).monitor;
     	bw.write(
     			ADC1 + ";" + ADC1StD + ";" +
     			ADC2 + ";" + ADC2StD + ";" +
@@ -405,6 +406,7 @@ public class Spectra {
 		T2 = _spectraList.get(0).T2; 				T2StD = _spectraList.get(0).T2StD;
 		T3 = _spectraList.get(0).T3; 				T3StD = _spectraList.get(0).T3StD;
 		counter1 = _spectraList.get(0).counter1; 	counter2 = _spectraList.get(0).counter2;
+		monitor = _spectraList.get(0).monitor;
     	bw.write(
     			ADC1 + ";" + ADC1StD + ";" +
     			ADC2 + ";" + ADC2StD + ";" +

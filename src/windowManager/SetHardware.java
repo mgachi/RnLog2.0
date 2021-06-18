@@ -45,7 +45,7 @@ public class SetHardware extends JDialog {
 		setBounds(100, 100, 283, 346);
 		getContentPane().setLayout(new GridLayout(0, 1, 0, 0));
 		{
-			JButton btnSetName = new JButton("Tag & Name");
+			JButton btnSetName = new JButton("Monitor Tag & Name");
 			btnSetName.setBackground(SystemColor.menu);
 			btnSetName.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {

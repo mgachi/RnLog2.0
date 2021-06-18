@@ -95,7 +95,7 @@ public class RnLog extends JFrame{
 	//the currently selected spectrum of the list
 	public int selectedSpecIdx = 0;
 	public Spectra RefSpec;
-	public String SoftwareVersion = "RnLog 2.0";
+	public String SoftwareVersion = "RnLog 2.7";
 	Thread TLiveMode;
 	//for continue evaluation mode
 	public ArrayList<Spectra> flagged = new ArrayList<Spectra>();
@@ -177,7 +177,7 @@ public class RnLog extends JFrame{
 		JMenuItem mntmNewMenuItem_8 = new JMenuItem("Make Activity File (.act)");
 		mnNewMenu.add(mntmNewMenuItem_8);
 		
-		JMenuItem mntmNewMenuItem_7 = new JMenuItem("Automated evaluation");
+		JMenuItem mntmNewMenuItem_7 = new JMenuItem("Full evaluation");
 		mnNewMenu.add(mntmNewMenuItem_7);
 		
 		JMenu mnNewMenu_1 = new JMenu("Configure");
@@ -439,7 +439,7 @@ public class RnLog extends JFrame{
 		textField_13.setBorder(new LineBorder(SystemColor.textText,1));
 		panel.add(textField_13);
 		
-		JLabel lblAdc = new JLabel("ADC 1:");
+		JLabel lblAdc = new JLabel("ADC 1 [l/h]:");
 		lblAdc.setBounds(10, 159, 75, 14);
 		panel.add(lblAdc);
 		
@@ -870,6 +870,7 @@ public class RnLog extends JFrame{
 				if (RefSpec == null) {
 					for (Spectra element : spectraList) {
 						//if there are files with no edge user is asked to provide a RefSpec
+						System.out.print(element.edge);
 						if (element.edge == -1) {
 							
 							int dialogButton = JOptionPane.YES_NO_OPTION;
@@ -1315,15 +1316,21 @@ public class RnLog extends JFrame{
 				            LocalDateTime last = LocalDateTime.parse(extlines.get(i-1).split(";")[0], DateTimeFormatter.ofPattern("dd.MM.yyy HH:mm:ss"));
 				            long difference = Duration.between(last,current).toMinutes();
 				            
-				        	if(difference > 30 ) {
-				        		//if (Datetime_last - Datetime_current) > 30min
-				        		flag[i] = 1; //split here
-				        		System.out.println("split, diff is " + difference + " min");
-				        		splittedExtlines.add((ArrayList<String>) tmpList.clone());
-				        		tmpList.clear();
-				        		tmpList.add(extlines.get(i));
-				        		System.out.println("new Array of extLines " + extlines.get(i));
-				        	}
+				            if (Integer.parseInt(extlines.get(i).split(";")[1].trim()) < 1700) {
+				            	//if Spectrum LifeTime is smaller than 1700s delete ignore line				            	
+				            	extlines.remove(i);
+			    				i--;
+			    				continue;
+				            }
+				            	else if(difference > 30 ) {
+					        		//if (Datetime_last - Datetime_current) > 30min
+					        		flag[i] = 1; //split here
+					        		System.out.println("split, diff is " + difference + " min");
+					        		splittedExtlines.add((ArrayList<String>) tmpList.clone());
+					        		tmpList.clear();
+					        		tmpList.add(extlines.get(i));
+					        		System.out.println("new Array of extLines " + extlines.get(i));
+					        	}
 					        	else if(difference < 28.33 ) {
 					        		//if (Datetime_last - Datetime_current) < 1min
 					        		flag[i] = 2; //remove this
@@ -1840,7 +1847,9 @@ public class RnLog extends JFrame{
 		//if it is the rerun due to the creation of the ref spec -> skip this part all together
 		//comparing file names lvl0 and lvl2 folders
 		//all names are compared, as files to evaluate the complement set lvl0\lvl2 is used
-		if (!isRefSpecRun) {	        
+		if (!isRefSpecRun) {
+			//reseting RefSpec
+			RefSpec = null;
 	        //creating SwingWorker to run the main task while GUI runs in Event Dispatch Thread and shows progress
 			class LoadingFiles extends SwingWorker<Void, Void> {
 		        
@@ -1887,7 +1896,7 @@ public class RnLog extends JFrame{
 						if (currentFile.isFile() && lvl0FileNames.get(i).contains(".ref")) {
 							try {
 								System.out.println("Reference spectrum found: " + currentFile);
-								RefSpec = new Spectra(lvl0FileNames.get(i), currentFile);								
+								RefSpec = new Spectra(lvl0FileNames.get(i), currentFile);
 							} catch (Exception e) {
 								System.out.println("could not load reference spectrum");
 								JOptionPane.showMessageDialog(null, "The reference spectrum found in the lvl0 directory is brocken. Please provide a valid one." , "Continue evaluation", JOptionPane.INFORMATION_MESSAGE);
@@ -1941,7 +1950,22 @@ public class RnLog extends JFrame{
 		    	progressBar.setString("");
 		    	return;
 		    }
+		    
+		    //checking if the correct iniFile is used
+		    if (RefSpec!=null) {
+		    	boolean rightIniFile = RefSpec.monitor.equals(ini.id);	
+		    	System.out.println(rightIniFile);
+				if (!rightIniFile) {
+					//exiting the evaluation procedure       		
+	        		progressBar.setString("");
+	    			progressBar.setValue(0);
+	    			tempFileList.clear();
+	    			JOptionPane.showMessageDialog(null, "Wrong ini file is loaded! Please provide the correct one!" , "Continue evaluation", JOptionPane.ERROR_MESSAGE);
+	    			return;
+				}
+		    }
 			
+		    
 			//getting the raw not yet evaluated spectra
 	        toEvaluate = (ArrayList<File>) tempFileList.clone();	
 			//clearing global variable for the next run
@@ -2180,7 +2204,19 @@ public class RnLog extends JFrame{
 		//setting Po-edge in the radon spectra
 		//////////////////////////////////////////////////////
 		
-		
+		//checking if the correct iniFile is used
+		System.out.println(RefSpec.monitor);
+	    boolean rightIniFile = RefSpec.monitor.equals(ini.id);	
+    	
+		if (!rightIniFile) {
+			//exiting the evaluation procedure       		
+    		progressBar.setString("");
+			progressBar.setValue(0);
+			tempFileList.clear();
+			JOptionPane.showMessageDialog(null, "Wrong ini file is loaded! Please provide the correct one!" , "Continue evaluation", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+	    
 	    
 		//getting spectra from the saving container if it is ref spec run
 		if (isRefSpecRun) {
